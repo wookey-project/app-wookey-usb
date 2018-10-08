@@ -100,6 +100,11 @@ int _main(uint32_t task_id)
 
     do {
       ret = sys_ipc(IPC_SEND_SYNC, id_crypto, size, (const char*)&ipc_sync_cmd);
+      if (ret != SYS_E_DONE) {
+          printf("Oops ! ret = %d\n", ret);
+      } else {
+          printf("end of end_of_init synchro.\n");
+      }
     } while (ret != SYS_E_DONE);
 
     /* Now wait for Acknowledge from Smart */
@@ -107,6 +112,11 @@ int _main(uint32_t task_id)
 
     do {
         ret = sys_ipc(IPC_RECV_SYNC, &id, &size, (char*)&ipc_sync_cmd);
+      if (ret != SYS_E_DONE) {
+          printf("ack from crypto: Oops ! ret = %d\n", ret);
+      } else {
+          printf("Aclknowledge from crypto ok\n");
+      }
     } while (ret != SYS_E_DONE);
     if (   ipc_sync_cmd.magic == MAGIC_TASK_STATE_RESP
         && ipc_sync_cmd.state == SYNC_ACKNOWLEDGE) {
@@ -133,16 +143,22 @@ int _main(uint32_t task_id)
 
     /* Initialize USB device */
     wmalloc_init();
-    scsi_init();
-    mass_storage_init();
-
     ipc_sync_cmd.magic = MAGIC_TASK_STATE_RESP;
     ipc_sync_cmd.state = SYNC_READY;
 
     size = 2;
     do {
       ret = sys_ipc(IPC_SEND_SYNC, id_crypto, size, (char*)&ipc_sync_cmd);
+      if (ret != SYS_E_DONE) {
+          printf("sending Sync ready to crypto: Oops ! ret = %d\n", ret);
+      } else {
+          printf("sending sync ready to crypto ok\n");
+      }
     } while (ret != SYS_E_DONE);
+
+    scsi_init();
+    mass_storage_init();
+
 
     /*******************************************
      * Starting USB listener
@@ -150,7 +166,7 @@ int _main(uint32_t task_id)
 
     printf("USB main loop starting\n");
 
-    scsi_state_machine();
+    scsi_state_machine(id_crypto, id_crypto);
 
     while (1) {
         sys_yield();

@@ -24,7 +24,7 @@ APP_BUILD_DIR = $(BUILD_DIR)/apps/$(DIR_NAME)
 
 CFLAGS += -Isrc/ -Iinc/
 CFLAGS += $(APPS_CFLAGS)
-CFLAGS += -MMD -MP
+CFLAGS += -MMD -MP -O3
 
 LDFLAGS += $(AFLAGS) -fno-builtin -nostdlib -nostartfiles -Xlinker -Map=$(APP_BUILD_DIR)/$(APP_NAME).map
 
