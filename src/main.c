@@ -134,7 +134,7 @@ int _main(uint32_t task_id)
 
     do {
         ret = sys_ipc(IPC_RECV_SYNC, &id, &size, (char*)&ipc_sync_cmd);
-    } while (ret != SYS_E_DONE);
+    } while (ret == SYS_E_BUSY);
 
     if (   ipc_sync_cmd.magic == MAGIC_TASK_STATE_CMD
         && ipc_sync_cmd.state == SYNC_READY) {
@@ -154,7 +154,7 @@ int _main(uint32_t task_id)
       } else {
           printf("sending sync ready to crypto ok\n");
       }
-    } while (ret != SYS_E_DONE);
+    } while (ret == SYS_E_BUSY);
 
     scsi_init();
     mass_storage_init();
