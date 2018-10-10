@@ -27,7 +27,9 @@ void tim_handler(uint8_t irq)
     num_tim++;
 }
 
-uint8_t usb_buf[4096];
+#define USB_BUF_SIZE 8192
+
+uint8_t usb_buf[USB_BUF_SIZE];
 
 /*
  * We use the local -fno-stack-protector flag for main because
@@ -36,7 +38,7 @@ uint8_t usb_buf[4096];
 int _main(uint32_t task_id)
 {
 //    const char * test = "hello, I'm usb\n";
-    e_syscall_ret ret = 0;
+    volatile e_syscall_ret ret = 0;
 //    uint32_t size = 256;
     uint8_t id_crypto = 0;
     uint8_t id;
@@ -59,14 +61,14 @@ int _main(uint32_t task_id)
     dmashm_rd.target = id_crypto;
     dmashm_rd.source = task_id;
     dmashm_rd.address = (physaddr_t)usb_buf;
-    dmashm_rd.size = 4000;
+    dmashm_rd.size = USB_BUF_SIZE;
     /* Crypto DMA will read from this buffer */
     dmashm_rd.mode = DMA_SHM_ACCESS_RD;
 
     dmashm_wr.target = id_crypto;
     dmashm_wr.source = task_id;
     dmashm_wr.address = (physaddr_t)usb_buf;
-    dmashm_wr.size = 4000;
+    dmashm_wr.size = USB_BUF_SIZE;
     /* Crypto DMA will write into this buffer */
     dmashm_wr.mode = DMA_SHM_ACCESS_WR;
 
@@ -79,7 +81,7 @@ int _main(uint32_t task_id)
     printf("sys_init returns %s !\n", strerror(ret));
 
     /* initialize the SCSI stack with two buffers of 4096 bits length each. */
-    scsi_early_init(usb_buf, 4096);
+    scsi_early_init(usb_buf, USB_BUF_SIZE);
 
     /*******************************************
      * End of init
@@ -99,6 +101,7 @@ int _main(uint32_t task_id)
     ipc_sync_cmd.state = SYNC_READY;
 
     do {
+      ret = 42;
       ret = sys_ipc(IPC_SEND_SYNC, id_crypto, size, (const char*)&ipc_sync_cmd);
       if (ret != SYS_E_DONE) {
           printf("Oops ! ret = %d\n", ret);
@@ -155,6 +158,31 @@ int _main(uint32_t task_id)
           printf("sending sync ready to crypto ok\n");
       }
     } while (ret == SYS_E_BUSY);
+
+    // take some time to finish all sync ipc...
+    sys_sleep(2000, SLEEP_MODE_INTERRUPTIBLE);
+
+    /*******************************************
+     * Sharing DMA SHM address and size with crypto
+     *******************************************/
+    struct dmashm_info {
+        uint32_t addr;
+        uint16_t size;
+    };
+    struct dmashm_info dmashm_info;
+
+    dmashm_info.addr = (uint32_t)usb_buf;
+    dmashm_info.size = USB_BUF_SIZE;
+
+    printf("informing crypto about DMA SHM...\n");
+    do {
+      ret = sys_ipc(IPC_SEND_SYNC, id_crypto, sizeof(struct dmashm_info), (char*)&dmashm_info);
+    } while (ret == SYS_E_BUSY);
+    printf("Crypto informed.\n");
+
+    /*******************************************
+     * End of init sequence, let's initialize devices
+     *******************************************/
 
     scsi_init();
     mass_storage_init();
