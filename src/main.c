@@ -29,7 +29,7 @@ void tim_handler(uint8_t irq)
 
 #define USB_BUF_SIZE 8192
 
-uint8_t usb_buf[USB_BUF_SIZE];
+uint8_t usb_buf[USB_BUF_SIZE] = { 0 };
 
 /*
  * We use the local -fno-stack-protector flag for main because
