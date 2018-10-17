@@ -42,7 +42,9 @@ int _main(uint32_t task_id)
 //    uint32_t size = 256;
     uint8_t id_crypto = 0;
     uint8_t id;
-    struct sync_command ipc_sync_cmd;
+
+    struct sync_command      ipc_sync_cmd;
+
     dma_shm_t dmashm_rd;
     dma_shm_t dmashm_wr;
 #if 0
@@ -94,7 +96,7 @@ int _main(uint32_t task_id)
     /*******************************************
      * let's syncrhonize with other tasks
      *******************************************/
-    logsize_t size = 2;
+    logsize_t size = sizeof (struct sync_command);
 
     printf("sending end_of_init syncrhonization to crypto\n");
     ipc_sync_cmd.magic = MAGIC_TASK_STATE_CMD;
@@ -133,7 +135,7 @@ int _main(uint32_t task_id)
     printf("waiting end_of_cryp syncrhonization from crypto\n");
 
     id = id_crypto;
-    size = 2;
+    size = sizeof(struct sync_command);
 
     do {
         ret = sys_ipc(IPC_RECV_SYNC, &id, &size, (char*)&ipc_sync_cmd);
@@ -149,7 +151,7 @@ int _main(uint32_t task_id)
     ipc_sync_cmd.magic = MAGIC_TASK_STATE_RESP;
     ipc_sync_cmd.state = SYNC_READY;
 
-    size = 2;
+    size = sizeof(struct sync_command);
     do {
       ret = sys_ipc(IPC_SEND_SYNC, id_crypto, size, (char*)&ipc_sync_cmd);
       if (ret != SYS_E_DONE) {
