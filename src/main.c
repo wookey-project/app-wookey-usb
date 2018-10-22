@@ -27,7 +27,7 @@ void tim_handler(uint8_t irq)
     num_tim++;
 }
 
-#define USB_BUF_SIZE 8192
+#define USB_BUF_SIZE 16384
 
 uint8_t usb_buf[USB_BUF_SIZE] = { 0 };
 
