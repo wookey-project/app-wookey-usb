@@ -98,7 +98,7 @@ int _main(uint32_t task_id)
      *******************************************/
     logsize_t size = sizeof (struct sync_command);
 
-    printf("sending end_of_init syncrhonization to crypto\n");
+    printf("sending end_of_init synchronization to crypto\n");
     ipc_sync_cmd.magic = MAGIC_TASK_STATE_CMD;
     ipc_sync_cmd.state = SYNC_READY;
 
@@ -120,7 +120,7 @@ int _main(uint32_t task_id)
       if (ret != SYS_E_DONE) {
           printf("ack from crypto: Oops ! ret = %d\n", ret);
       } else {
-          printf("Aclknowledge from crypto ok\n");
+          printf("Acknowledge from crypto ok\n");
       }
     } while (ret != SYS_E_DONE);
     if (   ipc_sync_cmd.magic == MAGIC_TASK_STATE_RESP
