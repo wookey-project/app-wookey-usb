@@ -16,20 +16,10 @@
 
 static void my_irq_handler(void);
 
-char buffer_out[16] = "[five guys!   ]\0";
-char buffer_in[16] = "               \0";
-
-uint32_t num_tim = 0;
-
-void tim_handler(uint8_t irq)
-{
-    irq = irq;
-    num_tim++;
-}
-
 #define USB_BUF_SIZE 16384
 
-uint8_t usb_buf[USB_BUF_SIZE] = { 0 };
+/* NOTE: alignment for DMA */
+__attribute__((aligned(4))) uint8_t usb_buf[USB_BUF_SIZE] = { 0 };
 
 /*
  * We use the local -fno-stack-protector flag for main because
