@@ -14,6 +14,64 @@
 #include "masstorage.h"
 #include "api/malloc.h"
 
+#define USB_APP_DEBUG 0
+
+uint8_t id_crypto = 0;
+
+uint8_t scsi_read(uint32_t sector_address,
+                  uint32_t num_sectors)
+{
+
+    struct dataplane_command dataplane_command_rd = { 0 };
+    struct dataplane_command dataplane_command_ack = { 0 };
+    uint8_t sinker = id_crypto;
+    logsize_t ipcsize = sizeof(struct dataplane_command);
+
+    dataplane_command_rd.magic = MAGIC_DATA_RD_DMA_REQ;
+    dataplane_command_rd.sector_address = sector_address;
+    dataplane_command_rd.num_sectors = num_sectors;
+    // ipc_dma_request to cryp
+    sys_ipc(IPC_SEND_SYNC, id_crypto, sizeof(struct dataplane_command), (const char*)&dataplane_command_rd);
+    sinker = id_crypto;
+    ipcsize = sizeof(struct dataplane_command);
+    sys_ipc(IPC_RECV_SYNC, &sinker, &ipcsize, (char*)&dataplane_command_ack);
+    if (dataplane_command_ack.magic != MAGIC_DATA_RD_DMA_ACK) {
+        printf("dma request to sinker didn't received acknowledge\n");
+    }
+#if USB_APP_DEBUG
+printf("==> mockup_scsi_read10_data 0x%x %d\n", dataplane_command_rd.sector_address, num_sectors);
+#endif
+    return 0;
+}
+
+uint8_t scsi_write(uint32_t sector_address,
+                   uint32_t num_sectors)
+{
+    struct dataplane_command dataplane_command_wr = { 0 };
+    struct dataplane_command dataplane_command_ack = { 0 };
+    uint8_t sinker = id_crypto;
+    logsize_t ipcsize = sizeof(struct dataplane_command);
+
+    dataplane_command_wr.magic = MAGIC_DATA_WR_DMA_REQ;
+    dataplane_command_wr.sector_address = sector_address;
+    dataplane_command_wr.num_sectors = num_sectors;
+    // ipc_dma_request to cryp
+    sys_ipc(IPC_SEND_SYNC, id_crypto, sizeof(struct dataplane_command), (const char*)&dataplane_command_wr);
+    sinker = id_crypto;
+    ipcsize = sizeof(struct dataplane_command);
+    sys_ipc(IPC_RECV_SYNC, &sinker, &ipcsize, (char*)&dataplane_command_ack);
+    if (dataplane_command_ack.magic != MAGIC_DATA_WR_DMA_ACK) {
+        printf("dma request to sinker didn't received acknowledge\n");
+    }
+
+#if USB_APP_DEBUG
+printf("==> mockup_scsi_write10_data 0x%x %d\n", dataplane_command_wr.sector_address, num_sectors);
+#endif
+    return 0;
+}
+
+
+
 static void my_irq_handler(void);
 
 #define USB_BUF_SIZE 16384
@@ -30,7 +88,6 @@ int _main(uint32_t task_id)
 //    const char * test = "hello, I'm usb\n";
     volatile e_syscall_ret ret = 0;
 //    uint32_t size = 256;
-    uint8_t id_crypto = 0;
     uint8_t id;
 
     struct sync_command      ipc_sync_cmd;
@@ -73,7 +130,10 @@ int _main(uint32_t task_id)
     printf("sys_init returns %s !\n", strerror(ret));
 
     /* initialize the SCSI stack with two buffers of 4096 bits length each. */
-    scsi_early_init(usb_buf, USB_BUF_SIZE);
+    if (scsi_early_init(usb_buf, USB_BUF_SIZE, scsi_read, scsi_write)) {
+        printf("unable to early initialize SCSI stack! leaving...\n");
+        goto err;
+    }
 
     /*******************************************
      * End of init
@@ -188,6 +248,7 @@ int _main(uint32_t task_id)
 
     scsi_state_machine(id_crypto, id_crypto);
 
+err:
     while (1) {
         sys_yield();
     }
