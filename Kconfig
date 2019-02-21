@@ -6,6 +6,7 @@ config APP_USB
   default y
   select USR_LIB_WOOKEY
   select USR_LIB_MASSSTORAGE
+  select USR_DRV_USB
   ---help---
     Say y if you want to embbed USER custom application.
 
@@ -48,7 +49,7 @@ config APP_USB_STACKSIZE
     Specify the application stack size, in bytes. By default, set to 8192
     (i.e. 8k). Depending on the number of slots required, and the usage,
     the stack can be bigger or smaller.
-    
+
 config APP_USB_SHM
   bool "Shared memory usage"
   depends on APP_USB
