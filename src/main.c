@@ -253,6 +253,7 @@ int _main(uint32_t task_id)
 err:
     while (1) {
         sys_yield();
+        aprintf_flush();
     }
     /* should return to do_endoftask() */
     return 0;
