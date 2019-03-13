@@ -20,6 +20,7 @@
 
 uint8_t id_crypto = 0;
 
+
 uint8_t scsi_read(uint32_t sector_address,
                   uint32_t num_sectors)
 {
@@ -41,7 +42,7 @@ uint8_t scsi_read(uint32_t sector_address,
         printf("dma request to sinker didn't received acknowledge\n");
     }
 #if USB_APP_DEBUG
-printf("==> mockup_scsi_read10_data 0x%x %d\n", dataplane_command_rd.sector_address, num_sectors);
+printf("==> scsi_read10_data 0x%x %d\n", dataplane_command_rd.sector_address, num_sectors);
 #endif
     return 0;
 }
@@ -67,10 +68,67 @@ uint8_t scsi_write(uint32_t sector_address,
     }
 
 #if USB_APP_DEBUG
-printf("==> mockup_scsi_write10_data 0x%x %d\n", dataplane_command_wr.sector_address, num_sectors);
+printf("==> scsi_write10_data 0x%x %d\n", dataplane_command_wr.sector_address, num_sectors);
 #endif
     return 0;
 }
+
+
+
+static uint32_t scsi_get_storage_capacity(void){
+    uint8_t sinker = id_crypto;
+    logsize_t size = sizeof(struct sync_command_data);
+    e_syscall_ret ret;
+    uint32_t block_num = 0;
+    uint32_t block_size = 0;
+
+    struct sync_command_data ipc_sync_cmd_data;
+    memset((void*)&ipc_sync_cmd_data, 0, sizeof(struct sync_command_data));
+
+    ipc_sync_cmd_data.magic = MAGIC_STORAGE_SCSI_BLOCK_NUM_CMD;
+    sys_ipc(IPC_SEND_SYNC, sinker, sizeof(struct sync_command), (char*)&ipc_sync_cmd_data);
+
+    ret = sys_ipc(IPC_RECV_SYNC, &sinker, &size, (char*)&ipc_sync_cmd_data);
+    if (ipc_sync_cmd_data.magic == MAGIC_STORAGE_SCSI_BLOCK_NUM_RESP)
+    {
+        block_size = ipc_sync_cmd_data.data.u32[0];
+        block_num = ipc_sync_cmd_data.data.u32[1];
+    }
+    else
+    {
+        printf("%s: Error: got no block size from lower layers ...\n", __func__);
+        return -1;
+    }
+    return block_num;
+}
+
+
+static uint32_t scsi_get_storage_block_size(void){
+    uint8_t sinker = id_crypto;
+    uint32_t scsi_block_size  = 0;
+    logsize_t size = sizeof(struct sync_command_data);
+    e_syscall_ret ret;
+
+    struct sync_command_data ipc_sync_cmd_data;
+    memset((void*)&ipc_sync_cmd_data, 0, sizeof(struct sync_command_data));
+
+    ipc_sync_cmd_data.magic = MAGIC_STORAGE_SCSI_BLOCK_SIZE_CMD;
+    sys_ipc(IPC_SEND_SYNC, sinker, sizeof(struct sync_command), (char*)&ipc_sync_cmd_data);
+
+    ret = sys_ipc(IPC_RECV_SYNC, &sinker, &size, (char*)&ipc_sync_cmd_data);
+    if (ipc_sync_cmd_data.magic == MAGIC_STORAGE_SCSI_BLOCK_SIZE_RESP) {
+        scsi_block_size = ipc_sync_cmd_data.data.u32[0];
+        # if SCSI_DEBUG
+            printf("%s: Received block size is %d\n", __func__, ipc_sync_cmd_data.data.u32[0]);
+        #endif
+        return scsi_block_size;
+    }
+    else{
+        printf("%s: Error: got no block size from lower layers ...\n", __func__);
+    }
+    return -1;
+}
+
 
 
 
@@ -132,8 +190,16 @@ int _main(uint32_t task_id)
     printf("sys_init returns %s !\n", strerror(ret));
 
     /* initialize the SCSI stack with two buffers of 4096 bits length each. */
-    if (scsi_early_init(usb_buf, USB_BUF_SIZE, scsi_read, scsi_write)) {
-        printf("unable to early initialize SCSI stack! leaving...\n");
+    scsi_calbacks_t scsi_cb = {
+        .read = scsi_read,
+        .write = scsi_write,
+        .get_storage_capacity = scsi_get_storage_capacity,
+        .get_storage_block_size = scsi_get_storage_block_size
+    };
+
+
+    if (scsi_early_init(usb_buf, USB_BUF_SIZE, &scsi_cb)) {
+        printf("ERROR: Unable to early initialize SCSI stack! leaving...\n");
         goto err;
     }
 
@@ -248,10 +314,9 @@ int _main(uint32_t task_id)
 
     printf("USB main loop starting\n");
 
-    scsi_state_machine(id_crypto, id_crypto);
-
 err:
     while (1) {
+        scsi_exec_automaton();
         sys_yield();
         aprintf_flush();
     }
