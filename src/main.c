@@ -76,9 +76,10 @@ printf("==> scsi_write10_data 0x%x %d\n", dataplane_command_wr.sector_address, n
 
 
 static uint32_t scsi_get_storage_capacity(void){
-    uint8_t sinker = id_crypto;
     logsize_t size = sizeof(struct sync_command_data);
     e_syscall_ret ret;
+
+    uint8_t sinker = id_crypto;
     uint32_t block_num = 0;
     uint32_t block_size = 0;
 
@@ -93,21 +94,22 @@ static uint32_t scsi_get_storage_capacity(void){
     {
         block_size = ipc_sync_cmd_data.data.u32[0];
         block_num = ipc_sync_cmd_data.data.u32[1];
+        return block_num;
+
     }
-    else
-    {
-        printf("%s: Error: got no block size from lower layers ...\n", __func__);
-        return -1;
-    }
-    return block_num;
+    #if SCSI_DEBUG
+        printf("%s: ERROR: getting capacity from lower layers ...\n", __func__);
+    #endif
+    return -1;
+
 }
 
 
 static uint32_t scsi_get_storage_block_size(void){
-    uint8_t sinker = id_crypto;
-    uint32_t scsi_block_size  = 0;
     logsize_t size = sizeof(struct sync_command_data);
     e_syscall_ret ret;
+    uint8_t sinker = id_crypto;
+    uint32_t scsi_block_size  = 0;
 
     struct sync_command_data ipc_sync_cmd_data;
     memset((void*)&ipc_sync_cmd_data, 0, sizeof(struct sync_command_data));
@@ -119,14 +121,14 @@ static uint32_t scsi_get_storage_block_size(void){
     if (ipc_sync_cmd_data.magic == MAGIC_STORAGE_SCSI_BLOCK_SIZE_RESP) {
         scsi_block_size = ipc_sync_cmd_data.data.u32[0];
         # if SCSI_DEBUG
-            printf("%s: Received block size is %d\n", __func__, ipc_sync_cmd_data.data.u32[0]);
+            printf("%s: Received block size is %d\n", __func__, scsi_block_size);
         #endif
         return scsi_block_size;
     }
-    else{
-        printf("%s: Error: got no block size from lower layers ...\n", __func__);
-    }
-    return -1;
+    # if SCSI_DEBUG
+        printf("%s: ERROR: getting block size from lower layers ...\n", __func__);
+    #endif
+    return 4096; //FIXME HARCODED FOR DEBUG
 }
 
 
