@@ -16,12 +16,12 @@
 #include "masstorage.h"
 #include "api/malloc.h"
 
-#define USB_APP_DEBUG 0
+#define USB_APP_DEBUG 1
 
 uint8_t id_crypto = 0;
 
 
-uint8_t scsi_read(uint32_t sector_address,
+uint8_t storage_read(uint32_t sector_address,
                   uint32_t num_sectors)
 {
 
@@ -40,14 +40,15 @@ uint8_t scsi_read(uint32_t sector_address,
     sys_ipc(IPC_RECV_SYNC, &sinker, &ipcsize, (char*)&dataplane_command_ack);
     if (dataplane_command_ack.magic != MAGIC_DATA_RD_DMA_ACK) {
         printf("dma request to sinker didn't received acknowledge\n");
+        return -1;
     }
-#if USB_APP_DEBUG
-printf("==> scsi_read10_data 0x%x %d\n", dataplane_command_rd.sector_address, num_sectors);
-#endif
+    #if USB_APP_DEBUG
+        printf("==> storage_read10_data 0x%x %d\n", dataplane_command_rd.sector_address, num_sectors);
+    #endif
     return 0;
 }
 
-uint8_t scsi_write(uint32_t sector_address,
+uint8_t storage_write(uint32_t sector_address,
                    uint32_t num_sectors)
 {
     struct dataplane_command dataplane_command_wr = { 0 };
@@ -65,70 +66,132 @@ uint8_t scsi_write(uint32_t sector_address,
     sys_ipc(IPC_RECV_SYNC, &sinker, &ipcsize, (char*)&dataplane_command_ack);
     if (dataplane_command_ack.magic != MAGIC_DATA_WR_DMA_ACK) {
         printf("dma request to sinker didn't received acknowledge\n");
+        return -1;
     }
 
-#if USB_APP_DEBUG
-printf("==> scsi_write10_data 0x%x %d\n", dataplane_command_wr.sector_address, num_sectors);
-#endif
+    #if USB_APP_DEBUG
+        printf("==> storage_write10_data 0x%x %d\n", dataplane_command_wr.sector_address, num_sectors);
+    #endif
     return 0;
 }
 
 
 
-static uint32_t scsi_get_storage_capacity(void){
+static uint8_t get_storage_capacity(uint32_t * storage_capacity){
+
+    #if USB_APP_DEBUG
+        printf("%s\n", __func__);
+    #endif
+
     logsize_t size = sizeof(struct sync_command_data);
     e_syscall_ret ret;
 
     uint8_t sinker = id_crypto;
-    uint32_t block_num = 0;
-    uint32_t block_size = 0;
 
     struct sync_command_data ipc_sync_cmd_data;
     memset((void*)&ipc_sync_cmd_data, 0, sizeof(struct sync_command_data));
 
     ipc_sync_cmd_data.magic = MAGIC_STORAGE_SCSI_BLOCK_NUM_CMD;
-    sys_ipc(IPC_SEND_SYNC, sinker, sizeof(struct sync_command), (char*)&ipc_sync_cmd_data);
+    do {
+        ret = 42;
+        ret = sys_ipc(IPC_SEND_SYNC, sinker, sizeof(struct sync_command), (char*)&ipc_sync_cmd_data);
+        if (ret != SYS_E_DONE) {
+            # if USB_APP_DEBUG
+                printf("%s:%d Oops ! ret = %d\n", __func__, __LINE__, ret);
+            #endif
+        } else {
+            # if USB_APP_DEBUG
+                printf("%s:%d IPC MAGIC_STORAGE_SCSI_BLOCK_SIZE_CMD succesfully sent.\n", __func__, __LINE__);
+            #endif
+        }
+    } while (ret != SYS_E_DONE);
 
-    ret = sys_ipc(IPC_RECV_SYNC, &sinker, &size, (char*)&ipc_sync_cmd_data);
-    if (ipc_sync_cmd_data.magic == MAGIC_STORAGE_SCSI_BLOCK_NUM_RESP)
-    {
-        block_size = ipc_sync_cmd_data.data.u32[0];
-        block_num = ipc_sync_cmd_data.data.u32[1];
-        return block_num;
 
+    do {
+        ret = 42;
+        ret = sys_ipc(IPC_RECV_SYNC, &sinker, &size, (char*)&ipc_sync_cmd_data);
+        if (ret != SYS_E_DONE) {
+        # if USB_APP_DEBUG
+                printf("%s:%d Oops ! ret = %d\n", __func__, __LINE__, ret);
+        #endif
+        } else {
+        # if USB_APP_DEBUG
+            printf("%s:%d Got IPC_RECV_SYNC.\n");
+        #endif
+
+        }
+    } while (ret != SYS_E_DONE);
+
+    if (ipc_sync_cmd_data.magic == MAGIC_STORAGE_SCSI_BLOCK_NUM_RESP){
+        //block_size = ipc_sync_cmd_data.data.u32[0];
+        *storage_capacity = ipc_sync_cmd_data.data.u32[1];
+        # if USB_APP_DEBUG
+            printf("%s:%d Received storage_capacity is %d\n",  __func__, __LINE__, *storage_capacity);
+        #endif
+        return 0;
     }
-    #if SCSI_DEBUG
-        printf("%s: ERROR: getting capacity from lower layers ...\n", __func__);
+    #if USB_APP_DEBUG
+        printf("%s:%d ERROR: getting capacity from lower layers ...\n",  __func__, __LINE__);
     #endif
     return -1;
 
 }
 
 
-static uint32_t scsi_get_storage_block_size(void){
+static uint8_t  get_storage_block_size(uint32_t * block_size){
+#if USB_APP_DEBUG
+    printf("%s\n", __func__);
+#endif
+
     logsize_t size = sizeof(struct sync_command_data);
     e_syscall_ret ret;
     uint8_t sinker = id_crypto;
-    uint32_t scsi_block_size  = 0;
 
     struct sync_command_data ipc_sync_cmd_data;
     memset((void*)&ipc_sync_cmd_data, 0, sizeof(struct sync_command_data));
 
     ipc_sync_cmd_data.magic = MAGIC_STORAGE_SCSI_BLOCK_SIZE_CMD;
-    sys_ipc(IPC_SEND_SYNC, sinker, sizeof(struct sync_command), (char*)&ipc_sync_cmd_data);
+    do {
+        ret = 42;
+        ret = sys_ipc(IPC_SEND_SYNC, sinker, sizeof(struct sync_command), (char*)&ipc_sync_cmd_data);
+        if (ret != SYS_E_DONE) {
+            # if USB_APP_DEBUG
+                printf("%s:%d Oops ! ret = %d\n",  __func__, __LINE__, ret);
+            #endif
+        } else {
+            # if USB_APP_DEBUG
+                printf("%s:%d IPC MAGIC_STORAGE_SCSI_BLOCK_SIZE_CMD succesfully sent.\n", __func__, __LINE__);
+            #endif
+        }
+    } while (ret != SYS_E_DONE);
 
-    ret = sys_ipc(IPC_RECV_SYNC, &sinker, &size, (char*)&ipc_sync_cmd_data);
-    if (ipc_sync_cmd_data.magic == MAGIC_STORAGE_SCSI_BLOCK_SIZE_RESP) {
-        scsi_block_size = ipc_sync_cmd_data.data.u32[0];
-        # if SCSI_DEBUG
-            printf("%s: Received block size is %d\n", __func__, scsi_block_size);
+
+    do {
+        ret = 42;
+        ret = sys_ipc(IPC_RECV_SYNC, &sinker, &size, (char*)&ipc_sync_cmd_data);
+        if (ret != SYS_E_DONE) {
+        # if USB_APP_DEBUG
+            printf("%s:%d Oops ! ret = %d\n",  __func__, __LINE__, ret);
         #endif
-        return scsi_block_size;
+        } else {
+            # if USB_APP_DEBUG
+                printf("%s:%d Got IPC_RECV_SYNC.\n", __func__, __LINE__);
+            #endif
+        }
+    } while (ret != SYS_E_DONE);
+
+
+    if (ipc_sync_cmd_data.magic == MAGIC_STORAGE_SCSI_BLOCK_SIZE_RESP) {
+        *block_size = ipc_sync_cmd_data.data.u32[0];
+        # if USB_APP_DEBUG
+            printf("%s:%d Received block size is %d\n", __func__,  __LINE__, *block_size);
+        #endif
+        return 0;
     }
-    # if SCSI_DEBUG
-        printf("%s: ERROR: getting block size from lower layers ...\n", __func__);
+    # if USB_APP_DEBUG
+        printf("%s:%d ERROR: getting block size from lower layers ...\n", __func__,  __LINE__);
     #endif
-    return 4096; //FIXME HARCODED FOR DEBUG
+    return -1;
 }
 
 
@@ -147,19 +210,13 @@ __attribute__((aligned(4))) uint8_t usb_buf[USB_BUF_SIZE] = { 0 };
  */
 int _main(uint32_t task_id)
 {
-//    const char * test = "hello, I'm usb\n";
     volatile e_syscall_ret ret = 0;
-//    uint32_t size = 256;
     uint8_t id;
 
     struct sync_command      ipc_sync_cmd;
 
     dma_shm_t dmashm_rd;
     dma_shm_t dmashm_wr;
-#if 0
-    int i = 0;
-    uint64_t tick = 0;
-#endif
 
     printf("Hello ! I'm usb, my id is %x\n", task_id);
 
@@ -193,10 +250,8 @@ int _main(uint32_t task_id)
 
     /* initialize the SCSI stack with two buffers of 4096 bits length each. */
     scsi_calbacks_t scsi_cb = {
-        .read = scsi_read,
-        .write = scsi_write,
-        .get_storage_capacity = scsi_get_storage_capacity,
-        .get_storage_block_size = scsi_get_storage_block_size
+        .read = storage_read,
+        .write = storage_write,
     };
 
 
@@ -306,7 +361,28 @@ int _main(uint32_t task_id)
      * End of init sequence, let's initialize devices
      *******************************************/
 
-    scsi_init();
+    // take some time to finish all sync ipc...
+    //sys_sleep(1000, SLEEP_MODE_INTERRUPTIBLE);
+
+    uint32_t block_size = 0;
+    ret = get_storage_block_size(&block_size);
+    if ( ret != 0){
+        printf("%s: ERROR Getting storage block size\n", __func__);
+        while(1) {};
+    }
+    printf("%s: storage_block_size: %d\n", __func__, block_size);
+
+
+    uint32_t storage_size = 0;
+	ret = get_storage_capacity(&storage_size);
+    if (ret != 0) {
+        printf("%s: ERROR Getting storage capacity\n", __func__);
+        while(1) {};
+    }
+    printf("%s: storage_size: %d\n", __func__, storage_size);
+
+
+    scsi_init(storage_size, block_size);
     mass_storage_init();
 
 
