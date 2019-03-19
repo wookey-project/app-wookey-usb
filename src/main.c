@@ -151,43 +151,53 @@ static uint8_t  get_storage_block_size(uint32_t * block_size){
     memset((void*)&ipc_sync_cmd_data, 0, sizeof(struct sync_command_data));
 
     ipc_sync_cmd_data.magic = MAGIC_STORAGE_SCSI_BLOCK_SIZE_CMD;
+
     do {
-        ret = 42;
-        ret = sys_ipc(IPC_SEND_SYNC, sinker, sizeof(struct sync_command), (char*)&ipc_sync_cmd_data);
-        if (ret != SYS_E_DONE) {
-            # if USB_APP_DEBUG
+
+        do {
+            ret = 42;
+            ret = sys_ipc(IPC_SEND_SYNC, sinker, sizeof(struct sync_command), (char*)&ipc_sync_cmd_data);
+            if (ret != SYS_E_DONE) {
+# if USB_APP_DEBUG
                 printf("%s:%d Oops ! ret = %d\n",  __func__, __LINE__, ret);
-            #endif
-        } else {
-            # if USB_APP_DEBUG
+#endif
+            } else {
+# if USB_APP_DEBUG
                 printf("%s:%d IPC MAGIC_STORAGE_SCSI_BLOCK_SIZE_CMD succesfully sent.\n", __func__, __LINE__);
-            #endif
-        }
-    } while (ret != SYS_E_DONE);
+#endif
+            }
+        } while(ret!== SYS_E_DONE);
+
+        do {
+            if (ret == SYS_E_DONE) {
+                ret = 42;
+                ret = sys_ipc(IPC_RECV_SYNC, &sinker, &size, (char*)&ipc_sync_cmd_data);
+                if (ret != SYS_E_DONE) {
+# if USB_APP_DEBUG
+                    printf("%s:%d Oops ! ret = %d\n",  __func__, __LINE__, ret);
+#endif
+                } else {
+# if USB_APP_DEBUG
+                    printf("%s:%d Got IPC_RECV_SYNC.\n", __func__, __LINE__);
+#endif
+                }
+                if (ret != SYS_E_DONE) {
+                    goto error;
+                }
+            }
+        } while(ret!== SYS_E_DONE);
 
 
-    do {
-        ret = 42;
-        ret = sys_ipc(IPC_RECV_SYNC, &sinker, &size, (char*)&ipc_sync_cmd_data);
-        if (ret != SYS_E_DONE) {
-        # if USB_APP_DEBUG
-            printf("%s:%d Oops ! ret = %d\n",  __func__, __LINE__, ret);
-        #endif
-        } else {
-            # if USB_APP_DEBUG
-                printf("%s:%d Got IPC_RECV_SYNC.\n", __func__, __LINE__);
-            #endif
-        }
-    } while (ret != SYS_E_DONE);
+    } while (ipc_sync_cmd_data.magic != MAGIC_STORAGE_SCSI_BLOCK_SIZE_RESP);
 
 
-    if (ipc_sync_cmd_data.magic == MAGIC_STORAGE_SCSI_BLOCK_SIZE_RESP) {
-        *block_size = ipc_sync_cmd_data.data.u32[0];
-        # if USB_APP_DEBUG
-            printf("%s:%d Received block size is %d\n", __func__,  __LINE__, *block_size);
-        #endif
-        return 0;
-    }
+    *block_size = ipc_sync_cmd_data.data.u32[0];
+    # if USB_APP_DEBUG
+        printf("%s:%d Received block size is %d\n", __func__,  __LINE__, *block_size);
+    #endif
+    return 0;
+
+error:
     # if USB_APP_DEBUG
         printf("%s:%d ERROR: getting block size from lower layers ...\n", __func__,  __LINE__);
     #endif
