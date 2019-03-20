@@ -251,7 +251,7 @@ int _main(uint32_t task_id)
 err:
     while (1) {
         scsi_exec_automaton();
-        sys_yield();
+        sys_sleep(SLEEP_MODE_INTERRUPTIBLE, 10);
         aprintf_flush();
     }
     /* should return to do_endoftask() */
