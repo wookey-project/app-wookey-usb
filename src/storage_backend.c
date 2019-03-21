@@ -5,7 +5,7 @@
 #include "wookey_ipc.h"
 #include "scsi.h"
 
-#define USB_APP_DEBUG 1
+#define USB_APP_DEBUG 0
 
 extern uint8_t id_crypto;
 
