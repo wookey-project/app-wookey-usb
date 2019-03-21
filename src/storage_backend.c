@@ -155,6 +155,9 @@ uint8_t scsi_storage_backend_write(uint32_t sector_address,
     dataplane_command_wr.sector_address = sector_address;
     dataplane_command_wr.num_sectors = num_sectors;
     // ipc_dma_request to cryp
+#if USB_APP_DEBUG
+    printf("requesting %x num sectors, addr 0x%08x\n", num_sectors, sector_address);
+#endif
     sys_ipc(IPC_SEND_SYNC, id_crypto, sizeof(struct dataplane_command), (const char*)&dataplane_command_wr);
     sinker = id_crypto;
     ipcsize = sizeof(struct dataplane_command);
