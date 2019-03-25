@@ -210,16 +210,9 @@ int _main(uint32_t task_id)
       }
     } while (ret == SYS_E_BUSY);
 
-    // take some time to finish all sync ipc...
-    sys_sleep(1000, SLEEP_MODE_INTERRUPTIBLE);
-
     /*******************************************
      * Sharing DMA SHM address and size with crypto
      *******************************************/
-    struct dmashm_info {
-        uint32_t addr;
-        uint16_t size;
-    };
     struct dmashm_info dmashm_info;
 
     dmashm_info.addr = (uint32_t)usb_buf;
@@ -231,12 +224,17 @@ int _main(uint32_t task_id)
     } while (ret == SYS_E_BUSY);
     printf("Crypto informed.\n");
 
+    ret = sys_ipc(IPC_RECV_SYNC, &id, &size, (char*)&ipc_sync_cmd);
+    if (   ipc_sync_cmd.magic == MAGIC_TASK_STATE_RESP
+            && ipc_sync_cmd.state == SYNC_ACKNOWLEDGE) {
+        printf("crypto has acknowledge DMA SHM, continuing\n");
+    }
+
+
+
     /*******************************************
      * End of init sequence, let's initialize devices
      *******************************************/
-
-    // take some time to finish all sync ipc...
-    //sys_sleep(1000, SLEEP_MODE_INTERRUPTIBLE);
 
     scsi_init();
     mass_storage_init();
@@ -251,7 +249,6 @@ int _main(uint32_t task_id)
 err:
     while (1) {
         scsi_exec_automaton();
-        sys_sleep(SLEEP_MODE_INTERRUPTIBLE, 10);
         aprintf_flush();
     }
     /* should return to do_endoftask() */
