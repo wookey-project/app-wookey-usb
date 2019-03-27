@@ -13,7 +13,6 @@
 #include "usb.h"
 #include "usb_control.h"
 #include "scsi.h"
-#include "masstorage.h"
 #include "api/malloc.h"
 
 #define USB_APP_DEBUG 1
@@ -237,8 +236,6 @@ int _main(uint32_t task_id)
      *******************************************/
 
     scsi_init();
-    mass_storage_init();
-
 
     /*******************************************
      * Starting USB listener
