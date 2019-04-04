@@ -262,9 +262,16 @@ int _main(uint32_t task_id)
 
     printf("USB main loop starting\n");
 
-err:
     while (1) {
         scsi_exec_automaton();
+        aprintf_flush();
+    }
+
+
+err:
+    printf("Going to error state!\n");
+    while (1) {
+        sys_yield();
         aprintf_flush();
     }
     /* should return to do_endoftask() */
