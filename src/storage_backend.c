@@ -130,6 +130,9 @@ mbed_error_t  scsi_storage_backend_read(uint32_t sector_address,
     // ipc_dma_request to cryp
     ret = sys_ipc(IPC_SEND_SYNC, id_crypto, sizeof(struct dataplane_command), (const char*)&dataplane_command_rd);
     if (ret != SYS_E_DONE) {
+# if USB_APP_DEBUG
+        printf("%s: fail to send IPC to sdio\n", __func__);
+# endif
         error_code = MBED_ERROR_NOSTORAGE;
         goto error;
     }
@@ -137,18 +140,29 @@ mbed_error_t  scsi_storage_backend_read(uint32_t sector_address,
     ipcsize = sizeof(struct dataplane_command);
     ret = sys_ipc(IPC_RECV_SYNC, &sinker, &ipcsize, (char*)&dataplane_command_ack);
     if (ret != SYS_E_DONE) {
+# if USB_APP_DEBUG
+        printf("%s: fail to receive IPC from sdio\n", __func__);
+# endif
         error_code = MBED_ERROR_NOSTORAGE;
         goto error;
     }
     if (dataplane_command_ack.magic != MAGIC_DATA_RD_DMA_ACK) {
+# if USB_APP_DEBUG
         printf("dma request to sinker didn't received acknowledge\n");
+# endif
         error_code = MBED_ERROR_NOSTORAGE;
         goto error;
     }
     if (dataplane_command_ack.state != SYNC_ACKNOWLEDGE) {
         if (dataplane_command_ack.state == SYNC_FAILURE) {
+# if USB_APP_DEBUG
+            printf("%s: sdio said read error!\n", __func__);
+# endif
             error_code = MBED_ERROR_RDERROR;
         } else {
+# if USB_APP_DEBUG
+            printf("%s: sdio state is unknown!\n", __func__);
+# endif
             error_code = MBED_ERROR_UNKNOWN;
         }
     }
@@ -179,6 +193,9 @@ mbed_error_t scsi_storage_backend_write(uint32_t sector_address,
 
     ret = sys_ipc(IPC_SEND_SYNC, id_crypto, sizeof(struct dataplane_command), (const char*)&dataplane_command_wr);
     if (ret != SYS_E_DONE) {
+#if USB_APP_DEBUG
+        printf("%s: fail to send IPC to sdio\n", __func__);
+#endif
         error_code = MBED_ERROR_NOSTORAGE;
         goto error;
     }
@@ -186,18 +203,29 @@ mbed_error_t scsi_storage_backend_write(uint32_t sector_address,
     ipcsize = sizeof(struct dataplane_command);
     ret = sys_ipc(IPC_RECV_SYNC, &sinker, &ipcsize, (char*)&dataplane_command_ack);
     if (ret != SYS_E_DONE) {
+# if USB_APP_DEBUG
+        printf("%s: fail to receive IPC from sdio\n", __func__);
+# endif
         error_code = MBED_ERROR_NOSTORAGE;
         goto error;
     }
     if (dataplane_command_ack.magic != MAGIC_DATA_WR_DMA_ACK) {
+# if USB_APP_DEBUG
         printf("dma request to sinker didn't received acknowledge\n");
+# endif
         error_code = MBED_ERROR_NOSTORAGE;
         goto error;
     }
     if (dataplane_command_ack.state != SYNC_ACKNOWLEDGE) {
         if (dataplane_command_ack.state == SYNC_FAILURE) {
+# if USB_APP_DEBUG
+            printf("%s: sdio said write error!\n", __func__);
+# endif
             error_code = MBED_ERROR_WRERROR;
         } else {
+# if USB_APP_DEBUG
+            printf("%s: sdio said unknown error!\n", __func__);
+# endif
             error_code = MBED_ERROR_UNKNOWN;
         }
     }
