@@ -118,6 +118,15 @@ static void my_irq_handler(void);
 __attribute__((aligned(4)))
      uint8_t usb_buf[USB_BUF_SIZE] = { 0 };
 
+void request_reboot(void){
+        struct sync_command_data sync_command;
+        sync_command.magic = MAGIC_REBOOT_REQUEST;
+        sync_command.state = SYNC_WAIT;
+        sys_ipc(IPC_SEND_SYNC, id_crypto,
+                    sizeof(struct sync_command),
+                    (char*)&sync_command);
+}
+
 /*
  * We use the local -fno-stack-protector flag for main because
  * the stack protection has not been initialized yet.
@@ -308,6 +317,11 @@ int _main(uint32_t task_id)
         }
         scsi_exec_automaton();
         aprintf_flush();
+        /* Check if an USB reset request has been performed by the host ... */
+        if(usb_is_reset_asked()){
+            printf("USB reset asked by the host ...\n");
+            request_reboot();
+        }	
     }
 
 
