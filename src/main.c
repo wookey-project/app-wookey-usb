@@ -5,15 +5,15 @@
  *
  */
 
-#include "api/syscall.h"
-#include "api/stdio.h"
-#include "api/nostd.h"
-#include "api/string.h"
+#include "libc/syscall.h"
+#include "libc/stdio.h"
+#include "libc/nostd.h"
+#include "libc/string.h"
 #include "wookey_ipc.h"
 #include "usb.h"
 #include "usb_control.h"
 #include "scsi.h"
-#include "api/malloc.h"
+#include "libc/malloc.h"
 
 #define USB_APP_DEBUG 1
 
