@@ -26,12 +26,15 @@ void usb_do_reset(void)
     e_syscall_ret ret;
 
     struct sync_command ipc_sync_cmd;
-    memset((void*)&ipc_sync_cmd, 0, sizeof(struct sync_command));
+
+    memset((void *) &ipc_sync_cmd, 0, sizeof(struct sync_command));
 
     ipc_sync_cmd.magic = MAGIC_REBOOT_REQUEST;
-    ret = sys_ipc(IPC_SEND_SYNC, id_crypto, sizeof(struct sync_command), (char*)&ipc_sync_cmd);
+    ret =
+        sys_ipc(IPC_SEND_SYNC, id_crypto, sizeof(struct sync_command),
+                (char *) &ipc_sync_cmd);
     if (ret != SYS_E_DONE) {
-# if USB_APP_DEBUG
+#if USB_APP_DEBUG
         printf("%s:%d Oops ! ret = %d\n", __func__, __LINE__, ret);
 #endif
     }
@@ -51,8 +54,7 @@ void scsi_reset_device(void)
 
 
 
-mbed_error_t storage_read(uint32_t sector_address,
-                          uint32_t num_sectors)
+mbed_error_t storage_read(uint32_t sector_address, uint32_t num_sectors)
 {
 
     struct dataplane_command dataplane_command_rd = { 0 };
@@ -64,21 +66,22 @@ mbed_error_t storage_read(uint32_t sector_address,
     dataplane_command_rd.sector_address = sector_address;
     dataplane_command_rd.num_sectors = num_sectors;
     // ipc_dma_request to cryp
-    sys_ipc(IPC_SEND_SYNC, id_crypto, sizeof(struct dataplane_command), (const char*)&dataplane_command_rd);
+    sys_ipc(IPC_SEND_SYNC, id_crypto, sizeof(struct dataplane_command),
+            (const char *) &dataplane_command_rd);
     ipcsize = sizeof(struct dataplane_command);
-    sys_ipc(IPC_RECV_SYNC, &sinker, &ipcsize, (char*)&dataplane_command_ack);
+    sys_ipc(IPC_RECV_SYNC, &sinker, &ipcsize, (char *) &dataplane_command_ack);
     if (dataplane_command_ack.magic != MAGIC_DATA_RD_DMA_ACK) {
         printf("dma request to sinker didn't received acknowledge\n");
         return MBED_ERROR_NOSTORAGE;
     }
-    #if USB_APP_DEBUG
-        printf("==> storage_read10_data 0x%x %d\n", dataplane_command_rd.sector_address, num_sectors);
-    #endif
+#if USB_APP_DEBUG
+    printf("==> storage_read10_data 0x%x %d\n",
+           dataplane_command_rd.sector_address, num_sectors);
+#endif
     return MBED_ERROR_NONE;
 }
 
-mbed_error_t storage_write(uint32_t sector_address,
-                           uint32_t num_sectors)
+mbed_error_t storage_write(uint32_t sector_address, uint32_t num_sectors)
 {
     struct dataplane_command dataplane_command_wr = { 0 };
     struct dataplane_command dataplane_command_ack = { 0 };
@@ -89,18 +92,19 @@ mbed_error_t storage_write(uint32_t sector_address,
     dataplane_command_wr.sector_address = sector_address;
     dataplane_command_wr.num_sectors = num_sectors;
     // ipc_dma_request to cryp
-    sys_ipc(IPC_SEND_SYNC, id_crypto, sizeof(struct dataplane_command), (const char*)&dataplane_command_wr);
+    sys_ipc(IPC_SEND_SYNC, id_crypto, sizeof(struct dataplane_command),
+            (const char *) &dataplane_command_wr);
     sinker = id_crypto;
     ipcsize = sizeof(struct dataplane_command);
-    sys_ipc(IPC_RECV_SYNC, &sinker, &ipcsize, (char*)&dataplane_command_ack);
+    sys_ipc(IPC_RECV_SYNC, &sinker, &ipcsize, (char *) &dataplane_command_ack);
     if (dataplane_command_ack.magic != MAGIC_DATA_WR_DMA_ACK) {
         printf("dma request to sinker didn't received acknowledge\n");
         return MBED_ERROR_NOSTORAGE;
     }
-
-    #if USB_APP_DEBUG
-        printf("==> storage_write10_data 0x%x %d\n", dataplane_command_wr.sector_address, num_sectors);
-    #endif
+#if USB_APP_DEBUG
+    printf("==> storage_write10_data 0x%x %d\n",
+           dataplane_command_wr.sector_address, num_sectors);
+#endif
     return MBED_ERROR_NONE;
 }
 
@@ -111,7 +115,8 @@ static void my_irq_handler(void);
 #define USB_BUF_SIZE 16384
 
 /* NOTE: alignment for DMA */
-__attribute__((aligned(4))) uint8_t usb_buf[USB_BUF_SIZE] = { 0 };
+__attribute__((aligned(4)))
+     uint8_t usb_buf[USB_BUF_SIZE] = { 0 };
 
 /*
  * We use the local -fno-stack-protector flag for main because
@@ -122,7 +127,7 @@ int _main(uint32_t task_id)
     volatile e_syscall_ret ret = 0;
     uint8_t id;
 
-    struct sync_command      ipc_sync_cmd;
+    struct sync_command ipc_sync_cmd;
     struct sync_command_data ipc_sync_cmd_data;
 
     dma_shm_t dmashm_rd;
@@ -138,14 +143,14 @@ int _main(uint32_t task_id)
      *********************************************/
     dmashm_rd.target = id_crypto;
     dmashm_rd.source = task_id;
-    dmashm_rd.address = (physaddr_t)usb_buf;
+    dmashm_rd.address = (physaddr_t) usb_buf;
     dmashm_rd.size = USB_BUF_SIZE;
     /* Crypto DMA will read from this buffer */
     dmashm_rd.mode = DMA_SHM_ACCESS_RD;
 
     dmashm_wr.target = id_crypto;
     dmashm_wr.source = task_id;
-    dmashm_wr.address = (physaddr_t)usb_buf;
+    dmashm_wr.address = (physaddr_t) usb_buf;
     dmashm_wr.size = USB_BUF_SIZE;
     /* Crypto DMA will write into this buffer */
     dmashm_wr.mode = DMA_SHM_ACCESS_WR;
@@ -175,34 +180,36 @@ int _main(uint32_t task_id)
     /*******************************************
      * let's syncrhonize with other tasks
      *******************************************/
-    logsize_t size = sizeof (struct sync_command);
+    logsize_t size = sizeof(struct sync_command);
 
     printf("sending end_of_init synchronization to crypto\n");
     ipc_sync_cmd.magic = MAGIC_TASK_STATE_CMD;
     ipc_sync_cmd.state = SYNC_READY;
 
     do {
-      ret = 42;
-      ret = sys_ipc(IPC_SEND_SYNC, id_crypto, size, (const char*)&ipc_sync_cmd);
-      if (ret != SYS_E_DONE) {
-          printf("Oops ! ret = %d\n", ret);
-      } else {
-          printf("end of end_of_init synchro.\n");
-      }
+        ret = 42;
+        ret =
+            sys_ipc(IPC_SEND_SYNC, id_crypto, size,
+                    (const char *) &ipc_sync_cmd);
+        if (ret != SYS_E_DONE) {
+            printf("Oops ! ret = %d\n", ret);
+        } else {
+            printf("end of end_of_init synchro.\n");
+        }
     } while (ret != SYS_E_DONE);
 
     /* Now wait for Acknowledge from Smart */
     id = id_crypto;
 
     do {
-        ret = sys_ipc(IPC_RECV_SYNC, &id, &size, (char*)&ipc_sync_cmd);
-      if (ret != SYS_E_DONE) {
-          printf("ack from crypto: Oops ! ret = %d\n", ret);
-      } else {
-          printf("Acknowledge from crypto ok\n");
-      }
+        ret = sys_ipc(IPC_RECV_SYNC, &id, &size, (char *) &ipc_sync_cmd);
+        if (ret != SYS_E_DONE) {
+            printf("ack from crypto: Oops ! ret = %d\n", ret);
+        } else {
+            printf("Acknowledge from crypto ok\n");
+        }
     } while (ret != SYS_E_DONE);
-    if (   ipc_sync_cmd.magic == MAGIC_TASK_STATE_RESP
+    if (ipc_sync_cmd.magic == MAGIC_TASK_STATE_RESP
         && ipc_sync_cmd.state == SYNC_ACKNOWLEDGE) {
         printf("crypto has acknowledge end_of_init, continuing\n");
     }
@@ -217,10 +224,10 @@ int _main(uint32_t task_id)
     size = sizeof(struct sync_command);
 
     do {
-        ret = sys_ipc(IPC_RECV_SYNC, &id, &size, (char*)&ipc_sync_cmd);
+        ret = sys_ipc(IPC_RECV_SYNC, &id, &size, (char *) &ipc_sync_cmd);
     } while (ret == SYS_E_BUSY);
 
-    if (   ipc_sync_cmd.magic == MAGIC_TASK_STATE_CMD
+    if (ipc_sync_cmd.magic == MAGIC_TASK_STATE_CMD
         && ipc_sync_cmd.state == SYNC_READY) {
         printf("crypto module is ready\n");
     }
@@ -237,17 +244,18 @@ int _main(uint32_t task_id)
 
     size = sizeof(struct sync_command);
     do {
-      ret = sys_ipc(IPC_SEND_SYNC, id_crypto, size, (char*)&ipc_sync_cmd);
-      if (ret != SYS_E_DONE) {
-          printf("sending end of services init to crypto: Oops ! ret = %d\n", ret);
-      } else {
-          printf("sending end of services init to crypto ok\n");
-      }
+        ret = sys_ipc(IPC_SEND_SYNC, id_crypto, size, (char *) &ipc_sync_cmd);
+        if (ret != SYS_E_DONE) {
+            printf("sending end of services init to crypto: Oops ! ret = %d\n",
+                   ret);
+        } else {
+            printf("sending end of services init to crypto ok\n");
+        }
     } while (ret == SYS_E_BUSY);
 
     /* waiting for crypto acknowledge */
-    ret = sys_ipc(IPC_RECV_SYNC, &id, &size, (char*)&ipc_sync_cmd);
-    if (   ipc_sync_cmd.magic == MAGIC_TASK_STATE_RESP
+    ret = sys_ipc(IPC_RECV_SYNC, &id, &size, (char *) &ipc_sync_cmd);
+    if (ipc_sync_cmd.magic == MAGIC_TASK_STATE_RESP
         && ipc_sync_cmd.state == SYNC_ACKNOWLEDGE) {
         printf("crypto has acknowledge sync ready, continuing\n");
     } else {
@@ -261,17 +269,19 @@ int _main(uint32_t task_id)
     ipc_sync_cmd_data.magic = MAGIC_DMA_SHM_INFO_CMD;
     ipc_sync_cmd_data.state = SYNC_READY;
     ipc_sync_cmd_data.data_size = 2;
-    ipc_sync_cmd_data.data.u32[0] = (uint32_t)usb_buf;
+    ipc_sync_cmd_data.data.u32[0] = (uint32_t) usb_buf;
     ipc_sync_cmd_data.data.u32[1] = USB_BUF_SIZE;
 
     printf("informing crypto about DMA SHM...\n");
     do {
-      ret = sys_ipc(IPC_SEND_SYNC, id_crypto, sizeof(struct sync_command_data), (char*)&ipc_sync_cmd_data);
+        ret =
+            sys_ipc(IPC_SEND_SYNC, id_crypto, sizeof(struct sync_command_data),
+                    (char *) &ipc_sync_cmd_data);
     } while (ret == SYS_E_BUSY);
     printf("Crypto informed.\n");
 
-    ret = sys_ipc(IPC_RECV_SYNC, &id, &size, (char*)&ipc_sync_cmd);
-    if (   ipc_sync_cmd.magic == MAGIC_DMA_SHM_INFO_RESP
+    ret = sys_ipc(IPC_RECV_SYNC, &id, &size, (char *) &ipc_sync_cmd);
+    if (ipc_sync_cmd.magic == MAGIC_DMA_SHM_INFO_RESP
         && ipc_sync_cmd.state == SYNC_ACKNOWLEDGE) {
         printf("crypto has acknowledge DMA SHM, continuing\n");
     } else {
@@ -301,7 +311,7 @@ int _main(uint32_t task_id)
     }
 
 
-err:
+ err:
     printf("Going to error state!\n");
     while (1) {
         sys_yield();
