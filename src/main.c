@@ -21,35 +21,11 @@ uint8_t id_crypto = 0;
 
 volatile bool reset_requested = false;
 
-void usb_do_reset(void)
-{
-    e_syscall_ret ret;
-
-    struct sync_command ipc_sync_cmd;
-
-    memset((void *) &ipc_sync_cmd, 0, sizeof(struct sync_command));
-
-    ipc_sync_cmd.magic = MAGIC_REBOOT_REQUEST;
-    ret =
-        sys_ipc(IPC_SEND_SYNC, id_crypto, sizeof(struct sync_command),
-                (char *) &ipc_sync_cmd);
-    if (ret != SYS_E_DONE) {
-#if USB_APP_DEBUG
-        printf("%s:%d Oops ! ret = %d\n", __func__, __LINE__, ret);
-#endif
-    }
-    while (1) {
-        /* voluntary freeze, in our case, as this reset order request
-         * reboot */
-        continue;
-    }
-    return;
-}
-
-
 void scsi_reset_device(void)
 {
     reset_requested = true;
+    scsi_reinit();
+    reset_requested = false;
 }
 
 
@@ -312,9 +288,6 @@ int _main(uint32_t task_id)
     printf("USB main loop starting\n");
 
     while (1) {
-        if (reset_requested) {
-            usb_do_reset();
-        }
         scsi_exec_automaton();
         aprintf_flush();
         /* Check if an USB reset request has been performed by the host ... */
