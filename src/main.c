@@ -290,11 +290,6 @@ int _main(uint32_t task_id)
     while (1) {
         scsi_exec_automaton();
         aprintf_flush();
-        /* Check if an USB reset request has been performed by the host ... */
-        if(usb_is_reset_asked()){
-            printf("USB reset asked by the host ...\n");
-            request_reboot();
-        }	
     }
 
 
