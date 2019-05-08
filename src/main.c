@@ -36,6 +36,7 @@ mbed_error_t storage_read(uint32_t sector_address, uint32_t num_sectors)
     struct dataplane_command dataplane_command_rd = { 0 };
     struct dataplane_command dataplane_command_ack = { 0 };
     uint8_t sinker = id_crypto;
+    uint8_t ret;
     logsize_t ipcsize = sizeof(struct dataplane_command);
 
     dataplane_command_rd.magic = MAGIC_DATA_RD_DMA_REQ;
@@ -45,7 +46,10 @@ mbed_error_t storage_read(uint32_t sector_address, uint32_t num_sectors)
     sys_ipc(IPC_SEND_SYNC, id_crypto, sizeof(struct dataplane_command),
             (const char *) &dataplane_command_rd);
     ipcsize = sizeof(struct dataplane_command);
-    sys_ipc(IPC_RECV_SYNC, &sinker, &ipcsize, (char *) &dataplane_command_ack);
+    ret = sys_ipc(IPC_RECV_SYNC, &sinker, &ipcsize, (char *) &dataplane_command_ack);
+    if(ret != SYS_E_DONE){
+        return MBED_ERROR_NONE;
+    }
     if (dataplane_command_ack.magic != MAGIC_DATA_RD_DMA_ACK) {
         printf("dma request to sinker didn't received acknowledge\n");
         return MBED_ERROR_NOSTORAGE;
@@ -62,17 +66,24 @@ mbed_error_t storage_write(uint32_t sector_address, uint32_t num_sectors)
     struct dataplane_command dataplane_command_wr = { 0 };
     struct dataplane_command dataplane_command_ack = { 0 };
     uint8_t sinker = id_crypto;
+    uint8_t ret;
     logsize_t ipcsize = sizeof(struct dataplane_command);
 
     dataplane_command_wr.magic = MAGIC_DATA_WR_DMA_REQ;
     dataplane_command_wr.sector_address = sector_address;
     dataplane_command_wr.num_sectors = num_sectors;
     // ipc_dma_request to cryp
-    sys_ipc(IPC_SEND_SYNC, id_crypto, sizeof(struct dataplane_command),
+    ret = sys_ipc(IPC_SEND_SYNC, id_crypto, sizeof(struct dataplane_command),
             (const char *) &dataplane_command_wr);
+    if(ret != SYS_E_DONE){
+        return MBED_ERROR_NONE;
+    }
     sinker = id_crypto;
     ipcsize = sizeof(struct dataplane_command);
-    sys_ipc(IPC_RECV_SYNC, &sinker, &ipcsize, (char *) &dataplane_command_ack);
+    ret = sys_ipc(IPC_RECV_SYNC, &sinker, &ipcsize, (char *) &dataplane_command_ack);
+    if(ret != SYS_E_DONE){
+        return MBED_ERROR_NONE;
+    }
     if (dataplane_command_ack.magic != MAGIC_DATA_WR_DMA_ACK) {
         printf("dma request to sinker didn't received acknowledge\n");
         return MBED_ERROR_NOSTORAGE;
@@ -95,12 +106,17 @@ __attribute__((aligned(4)))
      uint8_t usb_buf[USB_BUF_SIZE] = { 0 };
 
 void request_reboot(void){
+        uint8_t ret;
         struct sync_command_data sync_command;
         sync_command.magic = MAGIC_REBOOT_REQUEST;
         sync_command.state = SYNC_WAIT;
-        sys_ipc(IPC_SEND_SYNC, id_crypto,
+        ret = sys_ipc(IPC_SEND_SYNC, id_crypto,
                     sizeof(struct sync_command),
                     (char*)&sync_command);
+        if(ret != SYS_E_DONE){
+            /* Request reboot failed ... This should not happen */
+            while(1){};
+        }
 }
 
 /*
@@ -194,8 +210,8 @@ int _main(uint32_t task_id)
             printf("Acknowledge from crypto ok\n");
         }
     } while (ret != SYS_E_DONE);
-    if (ipc_sync_cmd.magic == MAGIC_TASK_STATE_RESP
-        && ipc_sync_cmd.state == SYNC_ACKNOWLEDGE) {
+    if ((ipc_sync_cmd.magic == MAGIC_TASK_STATE_RESP)
+        && (ipc_sync_cmd.state == SYNC_ACKNOWLEDGE)) {
         printf("crypto has acknowledge end_of_init, continuing\n");
     }
 
@@ -210,10 +226,10 @@ int _main(uint32_t task_id)
 
     do {
         ret = sys_ipc(IPC_RECV_SYNC, &id, &size, (char *) &ipc_sync_cmd);
-    } while (ret == SYS_E_BUSY);
+    } while (ret != SYS_E_DONE);
 
-    if (ipc_sync_cmd.magic == MAGIC_TASK_STATE_CMD
-        && ipc_sync_cmd.state == SYNC_READY) {
+    if ((ipc_sync_cmd.magic == MAGIC_TASK_STATE_CMD)
+        && (ipc_sync_cmd.state == SYNC_READY)) {
         printf("crypto module is ready\n");
     }
 
@@ -236,15 +252,16 @@ int _main(uint32_t task_id)
         } else {
             printf("sending end of services init to crypto ok\n");
         }
-    } while (ret == SYS_E_BUSY);
+    } while (ret != SYS_E_DONE);
 
     /* waiting for crypto acknowledge */
     ret = sys_ipc(IPC_RECV_SYNC, &id, &size, (char *) &ipc_sync_cmd);
-    if (ipc_sync_cmd.magic == MAGIC_TASK_STATE_RESP
-        && ipc_sync_cmd.state == SYNC_ACKNOWLEDGE) {
+    if ((ipc_sync_cmd.magic == MAGIC_TASK_STATE_RESP)
+        && (ipc_sync_cmd.state == SYNC_ACKNOWLEDGE)) {
         printf("crypto has acknowledge sync ready, continuing\n");
     } else {
         printf("Error ! IPC desynchro !\n");
+        goto err;
     }
 
 
@@ -262,15 +279,16 @@ int _main(uint32_t task_id)
         ret =
             sys_ipc(IPC_SEND_SYNC, id_crypto, sizeof(struct sync_command_data),
                     (char *) &ipc_sync_cmd_data);
-    } while (ret == SYS_E_BUSY);
+    } while (ret != SYS_E_DONE);
     printf("Crypto informed.\n");
 
     ret = sys_ipc(IPC_RECV_SYNC, &id, &size, (char *) &ipc_sync_cmd);
-    if (ipc_sync_cmd.magic == MAGIC_DMA_SHM_INFO_RESP
-        && ipc_sync_cmd.state == SYNC_ACKNOWLEDGE) {
+    if ((ipc_sync_cmd.magic == MAGIC_DMA_SHM_INFO_RESP)
+        && (ipc_sync_cmd.state == SYNC_ACKNOWLEDGE)) {
         printf("crypto has acknowledge DMA SHM, continuing\n");
     } else {
         printf("Error ! IPC desynchro !\n");
+        goto err;
     }
 
 
