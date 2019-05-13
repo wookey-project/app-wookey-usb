@@ -30,7 +30,7 @@ mbed_error_t scsi_storage_backend_capacity(uint32_t * numblocks,
                 (char *) &ipc_sync_cmd_data);
     if (ret != SYS_E_DONE) {
 #if USB_APP_DEBUG
-        printf("%s:%d Oops ! ret = %d\n", __func__, __LINE__, ret);
+        printf("Oops! %s:%d\n", __func__, __LINE__);
 #endif
         error_code = MBED_ERROR_NOSTORAGE;
         goto error;
@@ -43,7 +43,7 @@ mbed_error_t scsi_storage_backend_capacity(uint32_t * numblocks,
     ret = sys_ipc(IPC_RECV_SYNC, &sinker, &size, (char *) &ipc_sync_cmd_data);
     if (ret != SYS_E_DONE) {
 #if USB_APP_DEBUG
-        printf("%s:%d Oops ! ret = %d\n", __func__, __LINE__, ret);
+        printf("Oops! %s:%d\n", __func__, __LINE__);
 #endif
         error_code = MBED_ERROR_NOSTORAGE;
         goto error;
@@ -71,7 +71,7 @@ mbed_error_t scsi_storage_backend_capacity(uint32_t * numblocks,
                 (char *) &ipc_sync_cmd_data);
     if (ret != SYS_E_DONE) {
 #if USB_APP_DEBUG
-        printf("%s:%d Oops ! ret = %d\n", __func__, __LINE__, ret);
+        printf("Oops! %s:%d\n", __func__, __LINE__);
 #endif
         error_code = MBED_ERROR_NOSTORAGE;
         goto error;
@@ -86,7 +86,7 @@ mbed_error_t scsi_storage_backend_capacity(uint32_t * numblocks,
     ret = sys_ipc(IPC_RECV_SYNC, &sinker, &size, (char *) &ipc_sync_cmd_data);
     if (ret != SYS_E_DONE) {
 #if USB_APP_DEBUG
-        printf("%s:%d Oops ! ret = %d\n", __func__, __LINE__, ret);
+        printf("Oops! %s:%d\n", __func__, __LINE__);
 #endif
         error_code = MBED_ERROR_NOSTORAGE;
         goto error;

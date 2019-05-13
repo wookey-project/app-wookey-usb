@@ -147,7 +147,7 @@ int _main(uint32_t task_id)
     ret = sys_init(INIT_GETTASKID, "crypto", &id_crypto);
     if (ret != SYS_E_DONE) {
 #if USB_APP_DEBUG
-        printf("%s:%d Oops ! ret = %d\n", __func__, __LINE__, ret);
+        printf("Oops! %s:%d\n", __func__, __LINE__);
 #endif
         goto error;
     }
@@ -176,7 +176,7 @@ int _main(uint32_t task_id)
     ret = sys_init(INIT_DMA_SHM, &dmashm_rd);
     if (ret != SYS_E_DONE) {
 #if USB_APP_DEBUG
-        printf("%s:%d Oops ! ret = %d\n", __func__, __LINE__, ret);
+        printf("Oops! %s:%d\n", __func__, __LINE__);
 #endif
         goto error;
     }
@@ -188,7 +188,7 @@ int _main(uint32_t task_id)
     ret = sys_init(INIT_DMA_SHM, &dmashm_wr);
     if (ret != SYS_E_DONE) {
 #if USB_APP_DEBUG
-        printf("%s:%d Oops ! ret = %d\n", __func__, __LINE__, ret);
+        printf("Oops! %s:%d\n", __func__, __LINE__);
 #endif
         goto error;
     }
@@ -207,7 +207,7 @@ int _main(uint32_t task_id)
     ret = sys_init(INIT_DONE);
     if (ret != SYS_E_DONE) {
 #if USB_APP_DEBUG
-        printf("%s:%d Oops ! ret = %d\n", __func__, __LINE__, ret);
+        printf("Oops! %s:%d\n", __func__, __LINE__);
 #endif
         goto error;
     }
@@ -226,7 +226,7 @@ int _main(uint32_t task_id)
     ret = sys_ipc(IPC_SEND_SYNC, id_crypto, size, (const char *) &ipc_sync_cmd);
     if (ret != SYS_E_DONE) {
 #if USB_APP_DEBUG
-        printf("%s:%d Oops ! ret = %d\n", __func__, __LINE__, ret);
+        printf("Oops! %s:%d\n", __func__, __LINE__);
 #endif
         goto error;
     }
@@ -260,7 +260,7 @@ int _main(uint32_t task_id)
     ret = sys_ipc(IPC_RECV_SYNC, &id, &size, (char *) &ipc_sync_cmd);
     if (ret != SYS_E_DONE) {
 #if USB_APP_DEBUG
-        printf("%s:%d Oops ! ret = %d\n", __func__, __LINE__, ret);
+        printf("Oops! %s:%d\n", __func__, __LINE__);
 #endif
         goto error;
     }
@@ -294,7 +294,7 @@ int _main(uint32_t task_id)
     ret = sys_ipc(IPC_RECV_SYNC, &id, &size, (char *) &ipc_sync_cmd);
     if (ret != SYS_E_DONE) {
 #if USB_APP_DEBUG
-        printf("%s:%d Oops ! ret = %d\n", __func__, __LINE__, ret);
+        printf("Oops! %s:%d\n", __func__, __LINE__);
 #endif
         goto error;
     }
@@ -323,7 +323,7 @@ int _main(uint32_t task_id)
                   (char *) &ipc_sync_cmd_data);
     if (ret != SYS_E_DONE) {
 #if USB_APP_DEBUG
-        printf("%s:%d Oops ! ret = %d\n", __func__, __LINE__, ret);
+        printf("Oops! %s:%d\n", __func__, __LINE__);
 #endif
         goto error;
     }
@@ -333,7 +333,7 @@ int _main(uint32_t task_id)
     ret = sys_ipc(IPC_RECV_SYNC, &id, &size, (char *) &ipc_sync_cmd);
     if (ret != SYS_E_DONE) {
 #if USB_APP_DEBUG
-        printf("%s:%d Oops ! ret = %d\n", __func__, __LINE__, ret);
+        printf("Oops! %s:%d\n", __func__, __LINE__);
 #endif
         goto error;
     }
