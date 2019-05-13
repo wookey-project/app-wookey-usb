@@ -23,8 +23,8 @@ uint8_t id_crypto = 0;
 static void my_irq_handler(void);
 
 /* NOTE: alignment for DMA */
-__attribute__((aligned(4)))
-    uint8_t usb_buf[USB_BUF_SIZE] = { 0 };
+__attribute__ ((aligned(4)))
+     uint8_t usb_buf[USB_BUF_SIZE] = { 0 };
 
 
 void scsi_reset_device(void)
@@ -56,7 +56,7 @@ mbed_error_t storage_read(uint32_t sector_address, uint32_t num_sectors)
     ipcsize = sizeof(struct dataplane_command);
     ret = sys_ipc(IPC_RECV_SYNC, &sinker, &ipcsize,
                   (char *) &dataplane_command_ack);
-    if(ret != SYS_E_DONE){
+    if (ret != SYS_E_DONE) {
         return MBED_ERROR_NONE;
     }
 
@@ -64,7 +64,6 @@ mbed_error_t storage_read(uint32_t sector_address, uint32_t num_sectors)
         printf("dma request to sinker didn't received acknowledge\n");
         return MBED_ERROR_NOSTORAGE;
     }
-
 #if USB_APP_DEBUG
     printf("==> storage_read10_data 0x%x %d\n",
            dataplane_command_rd.sector_address, num_sectors);
@@ -87,8 +86,8 @@ mbed_error_t storage_write(uint32_t sector_address, uint32_t num_sectors)
 
     /* ipc_dma_request to cryp */
     ret = sys_ipc(IPC_SEND_SYNC, id_crypto, sizeof(struct dataplane_command),
-            (const char *) &dataplane_command_wr);
-    if(ret != SYS_E_DONE){
+                  (const char *) &dataplane_command_wr);
+    if (ret != SYS_E_DONE) {
         return MBED_ERROR_NONE;
     }
 
@@ -96,7 +95,7 @@ mbed_error_t storage_write(uint32_t sector_address, uint32_t num_sectors)
     ipcsize = sizeof(struct dataplane_command);
     ret = sys_ipc(IPC_RECV_SYNC, &sinker, &ipcsize,
                   (char *) &dataplane_command_ack);
-    if(ret != SYS_E_DONE){
+    if (ret != SYS_E_DONE) {
         return MBED_ERROR_NONE;
     }
 
@@ -112,17 +111,19 @@ mbed_error_t storage_write(uint32_t sector_address, uint32_t num_sectors)
 }
 
 
-void request_reboot(void){
+void request_reboot(void)
+{
     uint8_t ret;
     struct sync_command_data sync_command;
+
     sync_command.magic = MAGIC_REBOOT_REQUEST;
     sync_command.state = SYNC_WAIT;
     ret = sys_ipc(IPC_SEND_SYNC, id_crypto,
-                sizeof(struct sync_command),
-                (char*)&sync_command);
-    if(ret != SYS_E_DONE){
+                  sizeof(struct sync_command), (char *) &sync_command);
+    if (ret != SYS_E_DONE) {
         /* Request reboot failed ... This should not happen */
-        while(1){};
+        while (1) {
+        };
     }
 }
 
@@ -222,8 +223,7 @@ int _main(uint32_t task_id)
     ipc_sync_cmd.magic = MAGIC_TASK_STATE_CMD;
     ipc_sync_cmd.state = SYNC_READY;
 
-    ret = sys_ipc(IPC_SEND_SYNC, id_crypto, size,
-                    (const char *) &ipc_sync_cmd);
+    ret = sys_ipc(IPC_SEND_SYNC, id_crypto, size, (const char *) &ipc_sync_cmd);
     if (ret != SYS_E_DONE) {
 #if USB_APP_DEBUG
         printf("%s:%d Oops ! ret = %d\n", __func__, __LINE__, ret);

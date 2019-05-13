@@ -34,10 +34,10 @@ mbed_error_t scsi_storage_backend_capacity(uint32_t * numblocks,
 #endif
         error_code = MBED_ERROR_NOSTORAGE;
         goto error;
-    } 
+    }
 #if USB_APP_DEBUG
-    printf ("%s:%d IPC MAGIC_STORAGE_SCSI_BLOCK_SIZE_CMD succesfully sent.\n",
-            __func__, __LINE__);
+    printf("%s:%d IPC MAGIC_STORAGE_SCSI_BLOCK_SIZE_CMD succesfully sent.\n",
+           __func__, __LINE__);
 #endif
 
     ret = sys_ipc(IPC_RECV_SYNC, &sinker, &size, (char *) &ipc_sync_cmd_data);
@@ -47,8 +47,7 @@ mbed_error_t scsi_storage_backend_capacity(uint32_t * numblocks,
 #endif
         error_code = MBED_ERROR_NOSTORAGE;
         goto error;
-    } 
-
+    }
 #if USB_APP_DEBUG
     printf("%s:%d Got IPC_RECV_SYNC.\n");
 #endif
@@ -172,7 +171,6 @@ mbed_error_t scsi_storage_backend_read(uint32_t sector_address,
             error_code = MBED_ERROR_UNKNOWN;
         }
     }
-
 #if USB_APP_DEBUG
     printf("==> storage_read10_data 0x%x %d\n",
            dataplane_command_rd.sector_address, num_sectors);
@@ -248,7 +246,6 @@ mbed_error_t scsi_storage_backend_write(uint32_t sector_address,
             error_code = MBED_ERROR_UNKNOWN;
         }
     }
-
 #if USB_APP_DEBUG
     printf("==> storage_write10_data 0x%x %d\n",
            dataplane_command_wr.sector_address, num_sectors);
