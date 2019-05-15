@@ -179,8 +179,11 @@ config APP_USB_PERM_MEM_DYNAMIC_MAP
 
 endmenu
 
-
-
 endmenu
+
+config APP_USB_DOMAIN
+    depends on APP_USB
+    int "USB app security domain"
+    default 0
 
 endmenu
