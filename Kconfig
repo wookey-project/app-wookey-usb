@@ -10,6 +10,8 @@ config APP_USB
   ---help---
     Say y if you want to embbed USER custom application.
 
+if APP_USB
+
 config APP_USB_FW
   bool "Usb App for firmware mode"
   depends on APP_USB
@@ -185,5 +187,7 @@ config APP_USB_DOMAIN
     depends on APP_USB
     int "USB app security domain"
     default 0
+
+endif
 
 endmenu
