@@ -69,6 +69,22 @@ config APP_USB_PRIO
     When using priority and RMA scheduling, please take care to yield()
     as much as possible to avoid deny of service to lower priority tasks
 
+choice
+  prompt "USB stack implementation release"
+  config APP_USB_STACK_LEGACY 
+     bool "use legacy USB stack for USB interaction"
+     select USR_DRV_USB
+     ---help---
+       old, stable, but limited and restricted USB mass-storage+DFU capable USB stack
+   config APP_USB_STACK_DYNAMIC
+     bool "use new dynamic hotpluggable USB stack"
+     select USR_DRV_USBOTGHS
+     select LIB_USBCTRL
+     ---help---
+        new dynamic, hotpluggable and multi-interfaces USB stack with runtime interface(s) registration
+endchoice
+
+
 menu "Permissions"
     visible if APP_USB
 

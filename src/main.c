@@ -11,9 +11,15 @@
 #include "libc/string.h"
 #include "wookey_ipc.h"
 #include "usb.h"
+#if CONFIG_APP_USB_STACK_LEGACY
 #include "usb_control.h"
 #include "scsi.h"
+#endif
 #include "libc/malloc.h"
+#if CONFIG_APP_USB_STACK_DYNAMIC
+#include "libusbctrl.h"
+#include "generated/devlist.h"
+#endif
 
 #define USB_APP_DEBUG 1
 #define USB_BUF_SIZE 16384
@@ -29,10 +35,15 @@ __attribute__ ((aligned(4)))
 void scsi_reset_device(void)
 {
     reset_requested = true;
+#if CONFIG_APP_USB_STACK_LEGACY
     scsi_reinit();
+#endif
     reset_requested = false;
 }
 
+#if CONFIG_APP_USB_STACK_DYNAMIC
+usbctrl_context_t ctx = { 0 };
+#endif
 
 mbed_error_t storage_read(uint32_t sector_address, uint32_t num_sectors)
 {
@@ -194,10 +205,17 @@ int _main(uint32_t task_id)
 
     printf("sys_init returns %s !\n", strerror(ret));
 
+#if CONFIG_APP_USB_STACK_LEGACY
     if (scsi_early_init(usb_buf, USB_BUF_SIZE)) {
         printf("ERROR: Unable to early initialize SCSI stack! leaving...\n");
         goto error;
     }
+#elif CONFIG_APP_USB_STACK_DYNAMIC
+    ctx.dev_id = USB_OTG_HS_ID;
+    usbctrl_declare(&ctx);
+#else
+# error "unkown USB stack!"
+#endif
 
     /*******************************************
      * End of init
@@ -347,7 +365,14 @@ int _main(uint32_t task_id)
      * End of init sequence, let's initialize devices
      *******************************************/
 
+#if CONFIG_APP_USB_STACK_LEGACY
     scsi_init();
+#elif CONFIG_APP_USB_STACK_DYNAMIC
+    usbctrl_initialize(&ctx);
+#else
+# error "unkown USB stack!"
+#endif
+
 
     /*******************************************
      * Starting USB listener
@@ -356,7 +381,14 @@ int _main(uint32_t task_id)
     printf("USB main loop starting\n");
 
     while (1) {
+#if CONFIG_APP_USB_STACK_LEGACY
         scsi_exec_automaton();
+#elif CONFIG_APP_USB_STACK_DYNAMIC
+        /* none by now... */
+        sys_sleep(SLEEP_MODE_INTERRUPTIBLE, 10);
+#else
+# error "unkown USB stack!"
+#endif
         aprintf_flush();
     }
 
