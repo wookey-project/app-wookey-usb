@@ -22,7 +22,11 @@
 #endif
 
 #define USB_APP_DEBUG 1
+#if 0
 #define USB_BUF_SIZE 16384
+#else
+#define USB_BUF_SIZE 512
+#endif
 
 volatile bool reset_requested = false;
 uint8_t id_crypto = 0;
@@ -42,7 +46,7 @@ void scsi_reset_device(void)
 }
 
 #if CONFIG_APP_USB_STACK_DYNAMIC
-usbctrl_context_t ctx = { 0 };
+volatile usbctrl_context_t ctx = { 0 };
 #endif
 
 mbed_error_t storage_read(uint32_t sector_address, uint32_t num_sectors)
@@ -135,6 +139,16 @@ void request_reboot(void)
         while (1) {
         };
     }
+}
+
+
+mbed_error_t scsi_rqst_handler(usbctrl_context_t *ctx,
+                               usbctrl_setup_pkt_t *pkt)
+{
+    printf("[SCSI] SCSI request handler\n");
+    ctx = ctx;
+    pkt = pkt;
+    return MBED_ERROR_NONE;
 }
 
 /*
@@ -369,6 +383,34 @@ int _main(uint32_t task_id)
     scsi_init();
 #elif CONFIG_APP_USB_STACK_DYNAMIC
     usbctrl_initialize(&ctx);
+
+    /* XXX: testing SCSI iface */
+    usbctrl_interface_t iface = { 0 };
+    iface.usb_class = USB_CLASS_MSC_UMS;
+    iface.usb_subclass = 0x6; /* SCSI transparent cmd set (i.e. use INQUIRY) */
+    iface.usb_protocol = 0x50; /* Protocol BBB (Bulk only) */
+    iface.dedicated = false;
+    iface.rqst_handler = scsi_rqst_handler;
+    iface.func_desc = 0;
+    iface.func_desc_len = 0;
+    iface.usb_ep_number = 2;
+    iface.eps[0].type = USB_EP_TYPE_BULK;
+    iface.eps[0].mode = USB_EP_MODE_READ;
+    iface.eps[0].attr = USB_EP_ATTR_NO_SYNC;
+    iface.eps[0].usage = USB_EP_USAGE_DATA;
+    iface.eps[0].pkt_maxsize = 512; /* mpsize on EP1 */
+    iface.eps[0].ep_num = 1; /* this may be updated by libctrl */
+    iface.eps[1].type = USB_EP_TYPE_BULK;
+    iface.eps[1].mode = USB_EP_MODE_WRITE;
+    iface.eps[1].attr = USB_EP_ATTR_NO_SYNC;
+    iface.eps[1].usage = USB_EP_USAGE_DATA;
+    iface.eps[1].pkt_maxsize = 512; /* mpsize on EP1 */
+    iface.eps[1].ep_num = 2; /* this may be updated by libctrl */
+
+
+
+    usbctrl_declare_interface(&ctx, &iface);
+    usbctrl_start_device(&ctx);
 #else
 # error "unkown USB stack!"
 #endif
@@ -384,8 +426,9 @@ int _main(uint32_t task_id)
 #if CONFIG_APP_USB_STACK_LEGACY
         scsi_exec_automaton();
 #elif CONFIG_APP_USB_STACK_DYNAMIC
+
         /* none by now... */
-        sys_sleep(SLEEP_MODE_INTERRUPTIBLE, 10);
+//        usbctrl_exec_automaton();
 #else
 # error "unkown USB stack!"
 #endif
