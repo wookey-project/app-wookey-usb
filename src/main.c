@@ -10,23 +10,15 @@
 #include "libc/nostd.h"
 #include "libc/string.h"
 #include "wookey_ipc.h"
-#include "usb.h"
-#if CONFIG_APP_USB_STACK_LEGACY
-#include "usb_control.h"
+#include "libusbotghs.h"
 #include "scsi.h"
-#endif
-#include "libc/malloc.h"
-#if CONFIG_APP_USB_STACK_DYNAMIC
 #include "libusbctrl.h"
 #include "generated/devlist.h"
-#endif
+#include "libc/types.h"
+#include "libc/malloc.h"
 
 #define USB_APP_DEBUG 1
-#if 0
 #define USB_BUF_SIZE 16384
-#else
-#define USB_BUF_SIZE 512
-#endif
 
 volatile bool reset_requested = false;
 uint8_t id_crypto = 0;
@@ -45,9 +37,7 @@ void scsi_reset_device(void)
     reset_requested = false;
 }
 
-#if CONFIG_APP_USB_STACK_DYNAMIC
 volatile usbctrl_context_t ctx = { 0 };
-#endif
 
 mbed_error_t storage_read(uint32_t sector_address, uint32_t num_sectors)
 {
@@ -219,17 +209,15 @@ int _main(uint32_t task_id)
 
     printf("sys_init returns %s !\n", strerror(ret));
 
-#if CONFIG_APP_USB_STACK_LEGACY
-    if (scsi_early_init(usb_buf, USB_BUF_SIZE)) {
+    /* declare libctrl context */
+    ctx.dev_id = USB_OTG_HS_ID;
+
+    /* declare SCSI */
+    mbed_error_t errcode = scsi_early_init(&(usb_buf[0]), USB_BUF_SIZE, (usbctrl_context_t *)&ctx);
+    if (errcode != MBED_ERROR_NONE) {
         printf("ERROR: Unable to early initialize SCSI stack! leaving...\n");
         goto error;
     }
-#elif CONFIG_APP_USB_STACK_DYNAMIC
-    ctx.dev_id = USB_OTG_HS_ID;
-    usbctrl_declare(&ctx);
-#else
-# error "unkown USB stack!"
-#endif
 
     /*******************************************
      * End of init
@@ -379,41 +367,7 @@ int _main(uint32_t task_id)
      * End of init sequence, let's initialize devices
      *******************************************/
 
-#if CONFIG_APP_USB_STACK_LEGACY
-    scsi_init();
-#elif CONFIG_APP_USB_STACK_DYNAMIC
-    usbctrl_initialize(&ctx);
-
-    /* XXX: testing SCSI iface */
-    usbctrl_interface_t iface = { 0 };
-    iface.usb_class = USB_CLASS_MSC_UMS;
-    iface.usb_subclass = 0x6; /* SCSI transparent cmd set (i.e. use INQUIRY) */
-    iface.usb_protocol = 0x50; /* Protocol BBB (Bulk only) */
-    iface.dedicated = false;
-    iface.rqst_handler = scsi_rqst_handler;
-    iface.func_desc = 0;
-    iface.func_desc_len = 0;
-    iface.usb_ep_number = 2;
-    iface.eps[0].type = USB_EP_TYPE_BULK;
-    iface.eps[0].mode = USB_EP_MODE_READ;
-    iface.eps[0].attr = USB_EP_ATTR_NO_SYNC;
-    iface.eps[0].usage = USB_EP_USAGE_DATA;
-    iface.eps[0].pkt_maxsize = 512; /* mpsize on EP1 */
-    iface.eps[0].ep_num = 1; /* this may be updated by libctrl */
-    iface.eps[1].type = USB_EP_TYPE_BULK;
-    iface.eps[1].mode = USB_EP_MODE_WRITE;
-    iface.eps[1].attr = USB_EP_ATTR_NO_SYNC;
-    iface.eps[1].usage = USB_EP_USAGE_DATA;
-    iface.eps[1].pkt_maxsize = 512; /* mpsize on EP1 */
-    iface.eps[1].ep_num = 2; /* this may be updated by libctrl */
-
-
-
-    usbctrl_declare_interface(&ctx, &iface);
-    usbctrl_start_device(&ctx);
-#else
-# error "unkown USB stack!"
-#endif
+    scsi_init((usbctrl_context_t*)&ctx);
 
 
     /*******************************************
@@ -423,15 +377,7 @@ int _main(uint32_t task_id)
     printf("USB main loop starting\n");
 
     while (1) {
-#if CONFIG_APP_USB_STACK_LEGACY
         scsi_exec_automaton();
-#elif CONFIG_APP_USB_STACK_DYNAMIC
-
-        /* none by now... */
-//        usbctrl_exec_automaton();
-#else
-# error "unkown USB stack!"
-#endif
         aprintf_flush();
     }
 

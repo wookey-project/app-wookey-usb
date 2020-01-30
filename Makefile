@@ -46,7 +46,7 @@ else
 # we use start group and end group because usbotghs and usbctrl have inter
 # dependencies, requiring the linker to resolve their respective symbols
 # each time
-LD_LIBS += -Wl,-lmassstorage -Wl,--start-group -Wl,-lusbotghs -Wl,-lusbctrl -Wl,--end-group -Wl,-lstd
+LD_LIBS += -Wl,--start-group -Wl,-lusbotghs -Wl,-lusbctrl -Wl,-lmassstorage -Wl,--end-group -Wl,-lstd
 endif
 
 ifeq (y,$(CONFIG_STD_DRBG))
