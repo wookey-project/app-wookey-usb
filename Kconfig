@@ -29,7 +29,12 @@ config APP_USB_DFU
   ---help---
     Say y if you want to embbed Usb custom application in DFU.
 
-
+config APP_USB_HEAPSIZE
+  int "task heap size in bytes"
+  depends on APP_USB
+  default 1024
+  ---help---
+    specify the requested heap size in bytes.
 
 config APP_USB_NUMSLOTS
   int "Number of required slots"
