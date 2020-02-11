@@ -37,6 +37,14 @@ void scsi_reset_device(void)
     reset_requested = false;
 }
 
+volatile bool conf_set = false;
+
+
+void usbctrl_configuration_set(void)
+{
+    conf_set = true;
+}
+
 volatile usbctrl_context_t ctx = { 0 };
 
 mbed_error_t storage_read(uint32_t sector_address, uint32_t num_sectors)
@@ -375,7 +383,11 @@ int _main(uint32_t task_id)
      *******************************************/
 
     printf("USB main loop starting\n");
-
+    /* wait for set_configuration trigger... */
+    while (!conf_set) {
+        aprintf_flush();
+    }
+    printf("Set configuration received\n");
     while (1) {
         scsi_exec_automaton();
         aprintf_flush();
