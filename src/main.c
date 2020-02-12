@@ -37,7 +37,7 @@ void scsi_reset_device(void)
     reset_requested = false;
 }
 
-volatile bool conf_set = false;
+static volatile bool conf_set = false;
 
 
 void usbctrl_configuration_set(void)
@@ -388,6 +388,7 @@ int _main(uint32_t task_id)
         aprintf_flush();
     }
     printf("Set configuration received\n");
+    scsi_initialize_automaton();
     while (1) {
         scsi_exec_automaton();
         aprintf_flush();
