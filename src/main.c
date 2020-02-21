@@ -27,14 +27,20 @@ uint8_t id_crypto = 0;
 __attribute__ ((aligned(4)))
      uint8_t usb_buf[USB_BUF_SIZE] = { 0 };
 
+/**
+ * Trigger: called when the USB control plane has received a USB RESET while in configured
+ * state. Here, we must clear the SCSI state and stop parsing cmd.
+ */
+void usbctrl_reset_received(void) {
+    reset_requested = true;
+
+}
+
+
 
 void scsi_reset_device(void)
 {
     reset_requested = true;
-#if CONFIG_APP_USB_STACK_LEGACY
-    scsi_reinit();
-#endif
-    reset_requested = false;
 }
 
 static volatile bool conf_set = false;
@@ -384,15 +390,22 @@ int _main(uint32_t task_id)
 
     printf("USB main loop starting\n");
     /* wait for set_configuration trigger... */
-    while (!conf_set) {
-        aprintf_flush();
-    }
-    printf("Set configuration received\n");
-    scsi_initialize_automaton();
-    while (1) {
-        scsi_exec_automaton();
-        aprintf_flush();
-    }
+    do {
+        reset_requested = false;
+        /* in case of RESET, reinit context to empty values */
+        scsi_reinit();
+        /* wait for SetConfiguration */
+        while (!conf_set) {
+            aprintf_flush();
+        }
+        printf("Set configuration received\n");
+        /* execute SCSI automaton */
+        scsi_initialize_automaton();
+        while (!reset_requested) {
+            scsi_exec_automaton();
+            aprintf_flush();
+        }
+    } while (1);
 
  error:
     printf("Going to error state!\n");
