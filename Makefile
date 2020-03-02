@@ -40,11 +40,17 @@ CFLAGS += -Isrc/ -MMD -MP -O3
 # linker options to add the layout file
 LDFLAGS += $(EXTRA_LDFLAGS) -L$(APP_BUILD_DIR)
 # project's library you whish to use...
-ifdef $(CONFIG_USR_DRV_USB_FS)
+ifeq ($(CONFIG_USR_DRV_USB_FS),y)
 BACKEND_DRV=usbotgfs
 else
+ifeq ($(CONFIG_USR_DRV_USB_HS),y)
 BACKEND_DRV=usbotghs
+else
+# FIXME: to be replaced by effective erroring
+BACKEND_DRV=
 endif
+endif
+
 # we use start group and end group because usbotghs and usbctrl have inter
 # dependencies, requiring the linker to resolve their respective symbols
 # each time
