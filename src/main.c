@@ -226,7 +226,9 @@ int _main(uint32_t task_id)
     /* declare libctrl context */
     ctx.dev_id = USB_OTG_HS_ID;
 
-    /* declare SCSI */
+    /* initialize USB Control plane */
+    usbctrl_initialize(&ctx);
+    /* declare various USB stacks: SCSI stack */
     mbed_error_t errcode = scsi_early_init(&(usb_buf[0]), USB_BUF_SIZE, (usbctrl_context_t *)&ctx);
     if (errcode != MBED_ERROR_NONE) {
         printf("ERROR: Unable to early initialize SCSI stack! leaving...\n");
@@ -238,6 +240,7 @@ int _main(uint32_t task_id)
      *******************************************/
 
     ret = sys_init(INIT_DONE);
+
     if (ret != SYS_E_DONE) {
 #if USB_APP_DEBUG
         printf("Oops! %s:%d\n", __func__, __LINE__);
@@ -379,7 +382,13 @@ int _main(uint32_t task_id)
 
     /*******************************************
      * End of init sequence, let's initialize devices
+     *
      *******************************************/
+
+    /* Start USB device */
+    usbctrl_start_device(&ctx);
+
+
 
     scsi_init((usbctrl_context_t*)&ctx);
 
