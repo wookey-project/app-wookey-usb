@@ -27,6 +27,8 @@ uint8_t id_crypto = 0;
 __attribute__ ((aligned(4)))
      uint8_t usb_buf[USB_BUF_SIZE] = { 0 };
 
+
+uint32_t usbxdci_handler;
 /**
  * Trigger: called when the USB control plane has received a USB RESET while in configured
  * state. Here, we must clear the SCSI state and stop parsing cmd.
@@ -51,7 +53,6 @@ void usbctrl_configuration_set(void)
     conf_set = true;
 }
 
-volatile usbctrl_context_t ctx = { 0 };
 
 mbed_error_t storage_read(uint32_t sector_address, uint32_t num_sectors)
 {
@@ -146,15 +147,6 @@ void request_reboot(void)
 }
 
 
-mbed_error_t scsi_rqst_handler(usbctrl_context_t *ctx,
-                               usbctrl_setup_pkt_t *pkt)
-{
-    printf("[SCSI] SCSI request handler\n");
-    ctx = ctx;
-    pkt = pkt;
-    return MBED_ERROR_NONE;
-}
-
 /*
  * We use the local -fno-stack-protector flag for main because
  * the stack protection has not been initialized yet.
@@ -223,13 +215,21 @@ int _main(uint32_t task_id)
 
     printf("sys_init returns %s !\n", strerror(ret));
 
-    /* declare libctrl context */
-    ctx.dev_id = USB_OTG_HS_ID;
 
     /* initialize USB Control plane */
-    usbctrl_initialize(&ctx);
+#if CONFIG_APP_USB_USR_DRV_USB_HS
+    usbctrl_declare(USB_OTG_HS_ID, &usbxdci_handler);
+#elif CONFIG_APP_USB_USR_DRV_USB_FS
+    usbctrl_declare(USB_OTG_FS_ID, &usbxdci_handler);
+#else
+# error "Unsupported USB driver backend"
+#endif
+    usbctrl_initialize(usbxdci_handler);
+
+    /* Control plane initialized, yet not started or mapped. */
+
     /* declare various USB stacks: SCSI stack */
-    mbed_error_t errcode = scsi_early_init(&(usb_buf[0]), USB_BUF_SIZE, (usbctrl_context_t *)&ctx);
+    mbed_error_t errcode = scsi_early_init(&(usb_buf[0]), USB_BUF_SIZE);
     if (errcode != MBED_ERROR_NONE) {
         printf("ERROR: Unable to early initialize SCSI stack! leaving...\n");
         goto error;
@@ -386,12 +386,9 @@ int _main(uint32_t task_id)
      *******************************************/
 
     /* Start USB device */
-    usbctrl_start_device(&ctx);
-
-
-
-    scsi_init((usbctrl_context_t*)&ctx);
-
+    usbctrl_start_device(usbxdci_handler);
+    /* enroll the SCSI interface */
+    scsi_init(usbxdci_handler);
 
     /*******************************************
      * Starting USB listener
