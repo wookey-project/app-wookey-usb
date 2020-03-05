@@ -10,7 +10,6 @@
 #include "libc/nostd.h"
 #include "libc/string.h"
 #include "wookey_ipc.h"
-#include "libusbotghs.h"
 #include "scsi.h"
 #include "libusbctrl.h"
 #include "generated/devlist.h"
@@ -215,21 +214,27 @@ int _main(uint32_t task_id)
 
     printf("sys_init returns %s !\n", strerror(ret));
 
-
+    mbed_error_t errcode;
     /* initialize USB Control plane */
 #if CONFIG_APP_USB_USR_DRV_USB_HS
-    usbctrl_declare(USB_OTG_HS_ID, &usbxdci_handler);
+    errcode = usbctrl_declare(USB_OTG_HS_ID, &usbxdci_handler);
 #elif CONFIG_APP_USB_USR_DRV_USB_FS
-    usbctrl_declare(USB_OTG_FS_ID, &usbxdci_handler);
+    errcode = usbctrl_declare(USB_OTG_FS_ID, &usbxdci_handler);
 #else
 # error "Unsupported USB driver backend"
 #endif
-    usbctrl_initialize(usbxdci_handler);
+    if (errcode != MBED_ERROR_NONE) {
+        printf("failed to declare usb Control plane !!!\n");
+    }
+    errcode = usbctrl_initialize(usbxdci_handler);
+    if (errcode != MBED_ERROR_NONE) {
+        printf("failed to initialize usb Control plane !!!\n");
+    }
 
     /* Control plane initialized, yet not started or mapped. */
 
     /* declare various USB stacks: SCSI stack */
-    mbed_error_t errcode = scsi_early_init(&(usb_buf[0]), USB_BUF_SIZE);
+    errcode = scsi_early_init(&(usb_buf[0]), USB_BUF_SIZE);
     if (errcode != MBED_ERROR_NONE) {
         printf("ERROR: Unable to early initialize SCSI stack! leaving...\n");
         goto error;
@@ -384,12 +389,10 @@ int _main(uint32_t task_id)
      * End of init sequence, let's initialize devices
      *
      *******************************************/
-
-    /* Start USB device */
-    usbctrl_start_device(usbxdci_handler);
     /* enroll the SCSI interface */
     scsi_init(usbxdci_handler);
-
+    /* Start USB device */
+    usbctrl_start_device(usbxdci_handler);
     /*******************************************
      * Starting USB listener
      *******************************************/
