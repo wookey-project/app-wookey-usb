@@ -271,7 +271,6 @@ int _main(uint32_t task_id)
     }
 
     /* Initialize USB device */
-    wmalloc_init();
 
     /************************************************
      * Sending crypto end_of_service_init
