@@ -20,7 +20,6 @@
 
 volatile bool reset_requested = false;
 uint8_t id_crypto = 0;
-static void my_irq_handler(void);
 
 /* NOTE: alignment for DMA */
 __attribute__ ((aligned(4)))
@@ -231,7 +230,6 @@ int _main(uint32_t task_id)
         goto error;
     }
 
-    printf("end of end_of_init synchro.\n");
 
     /* Now wait for Acknowledge from Smart */
     id = id_crypto;
