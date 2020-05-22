@@ -34,7 +34,8 @@ config APP_USB_HEAPSIZE
   depends on APP_USB
   default 1024
   ---help---
-    specify the requested heap size in bytes.
+    specify the requested heap size in bytes. Only requested if dynamic memory
+    primitives are used (typically malloc())
 
 config APP_USB_NUMSLOTS
   int "Number of required slots"
