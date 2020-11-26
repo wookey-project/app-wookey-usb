@@ -414,6 +414,8 @@ int _main(uint32_t task_id)
             scsi_exec_automaton();
             aprintf_flush();
         }
+        /* reset received! go back to default */
+        conf_set = false;
     } while (1);
 
  error:
