@@ -36,10 +36,25 @@ CFLAGS += -Isrc/ -MMD -MP -O3
 # About the link step
 ###################################################################
 
+
 # linker options to add the layout file
 LDFLAGS += $(EXTRA_LDFLAGS) -L$(APP_BUILD_DIR)
 # project's library you whish to use...
-LD_LIBS += -lmassstorage -lusb -lstd
+ifeq ($(CONFIG_APP_USB_USR_DRV_USB_FS),y)
+BACKEND_DRV=usbotgfs
+else
+ifeq ($(CONFIG_APP_USB_USR_DRV_USB_HS),y)
+BACKEND_DRV=usbotghs
+else
+# FIXME: to be replaced by effective erroring
+BACKEND_DRV=
+endif
+endif
+
+# we use start group and end group because usbotghs and usbctrl have inter
+# dependencies, requiring the linker to resolve their respective symbols
+# each time
+LD_LIBS += -Wl,--start-group -Wl,-l$(BACKEND_DRV) -Wl,-lusbctrl -Wl,-lmassstorage -Wl,--end-group -Wl,-lstd
 
 ifeq (y,$(CONFIG_STD_DRBG))
 LD_LIBS += -lhmac -lsign
@@ -76,7 +91,8 @@ TODEL_DISTCLEAN += $(APP_BUILD_DIR)
 
 ## library dependencies
 LIBDEP := $(BUILD_DIR)/libs/libstd/libstd.a \
-		  $(BUILD_DIR)/libs/libmassstorage/libmassstorage.a
+		  $(BUILD_DIR)/libs/libmassstorage/libmassstorage.a \
+		  $(BUILD_DIR)/libs/libusbctrl/libusbctrl.a
 
 
 libdep: $(LIBDEP)
@@ -86,7 +102,12 @@ $(LIBDEP):
 
 
 # drivers dependencies
-SOCDRVDEP := $(BUILD_DIR)/drivers/libusb/libusb.a
+#
+ifdef $(CONFIG_APP_USB_USR_DRV_USB_FS)
+SOCDRVDEP := $(BUILD_DIR)/drivers/libusbotgfs/libusbotgfs.a
+else
+SOCDRVDEP := $(BUILD_DIR)/drivers/libusbotghs/libusbotghs.a
+endif
 
 socdrvdep: $(SOCDRVDEP)
 

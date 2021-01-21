@@ -10,9 +10,10 @@
 #include "libc/nostd.h"
 #include "libc/string.h"
 #include "wookey_ipc.h"
-#include "usb.h"
-#include "usb_control.h"
 #include "scsi.h"
+#include "libusbctrl.h"
+#include "generated/devlist.h"
+#include "libc/types.h"
 #include "libc/malloc.h"
 
 #define USB_APP_DEBUG 1
@@ -26,11 +27,29 @@ __attribute__ ((aligned(4)))
      uint8_t usb_buf[USB_BUF_SIZE] = { 0 };
 
 
+uint32_t usbxdci_handler;
+/**
+ * Trigger: called when the USB control plane has received a USB RESET while in configured
+ * state. Here, we must clear the SCSI state and stop parsing cmd.
+ */
+void usbctrl_reset_received(void) {
+    reset_requested = true;
+
+}
+
+
+
 void scsi_reset_device(void)
 {
     reset_requested = true;
-    scsi_reinit();
-    reset_requested = false;
+}
+
+static volatile bool conf_set = false;
+
+
+void usbctrl_configuration_set(void)
+{
+    conf_set = true;
 }
 
 
@@ -126,6 +145,7 @@ void request_reboot(void)
     }
 }
 
+
 /*
  * We use the local -fno-stack-protector flag for main because
  * the stack protection has not been initialized yet.
@@ -194,7 +214,28 @@ int _main(uint32_t task_id)
 
     printf("sys_init returns %s !\n", strerror(ret));
 
-    if (scsi_early_init(usb_buf, USB_BUF_SIZE)) {
+    mbed_error_t errcode;
+    /* initialize USB Control plane */
+#if CONFIG_APP_USB_USR_DRV_USB_HS
+    errcode = usbctrl_declare(USB_OTG_HS_ID, &usbxdci_handler);
+#elif CONFIG_APP_USB_USR_DRV_USB_FS
+    errcode = usbctrl_declare(USB_OTG_FS_ID, &usbxdci_handler);
+#else
+# error "Unsupported USB driver backend"
+#endif
+    if (errcode != MBED_ERROR_NONE) {
+        printf("failed to declare usb Control plane !!!\n");
+    }
+    errcode = usbctrl_initialize(usbxdci_handler);
+    if (errcode != MBED_ERROR_NONE) {
+        printf("failed to initialize usb Control plane !!!\n");
+    }
+
+    /* Control plane initialized, yet not started or mapped. */
+
+    /* declare various USB stacks: SCSI stack */
+    errcode = scsi_early_init(&(usb_buf[0]), USB_BUF_SIZE);
+    if (errcode != MBED_ERROR_NONE) {
         printf("ERROR: Unable to early initialize SCSI stack! leaving...\n");
         goto error;
     }
@@ -204,6 +245,7 @@ int _main(uint32_t task_id)
      *******************************************/
 
     ret = sys_init(INIT_DONE);
+
     if (ret != SYS_E_DONE) {
 #if USB_APP_DEBUG
         printf("Oops! %s:%d\n", __func__, __LINE__);
@@ -345,20 +387,36 @@ int _main(uint32_t task_id)
 
     /*******************************************
      * End of init sequence, let's initialize devices
+     *
      *******************************************/
-
-    scsi_init();
-
+    /* enroll the SCSI interface */
+    scsi_init(usbxdci_handler);
+    /* Start USB device */
+    usbctrl_start_device(usbxdci_handler);
     /*******************************************
      * Starting USB listener
      *******************************************/
 
     printf("USB main loop starting\n");
-
-    while (1) {
-        scsi_exec_automaton();
-        aprintf_flush();
-    }
+    /* wait for set_configuration trigger... */
+    do {
+        reset_requested = false;
+        /* in case of RESET, reinit context to empty values */
+        scsi_reinit();
+        /* wait for SetConfiguration */
+        while (!conf_set) {
+            aprintf_flush();
+        }
+        printf("Set configuration received\n");
+        /* execute SCSI automaton */
+        scsi_initialize_automaton();
+        while (!reset_requested) {
+            scsi_exec_automaton();
+            aprintf_flush();
+        }
+        /* reset received! go back to default */
+        conf_set = false;
+    } while (1);
 
  error:
     printf("Going to error state!\n");
