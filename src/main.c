@@ -39,7 +39,7 @@ void usbctrl_reset_received(void) {
 
 
 
-void scsi_reset_device(void)
+void usbmsc_reset_stack(void)
 {
     reset_requested = true;
 }
@@ -234,7 +234,7 @@ int _main(uint32_t task_id)
     /* Control plane initialized, yet not started or mapped. */
 
     /* declare various USB stacks: SCSI stack */
-    errcode = scsi_early_init(&(usb_buf[0]), USB_BUF_SIZE);
+    errcode = usbmsc_declare(&(usb_buf[0]), USB_BUF_SIZE);
     if (errcode != MBED_ERROR_NONE) {
         printf("ERROR: Unable to early initialize SCSI stack! leaving...\n");
         goto error;
@@ -390,7 +390,7 @@ int _main(uint32_t task_id)
      *
      *******************************************/
     /* enroll the SCSI interface */
-    scsi_init(usbxdci_handler);
+    usbmsc_initialize(usbxdci_handler);
     /* Start USB device */
     usbctrl_start_device(usbxdci_handler);
     /*******************************************
@@ -402,17 +402,16 @@ int _main(uint32_t task_id)
     do {
         reset_requested = false;
         /* in case of RESET, reinit context to empty values */
-        scsi_reinit();
+        usbmsc_reinit();
         /* wait for SetConfiguration */
         while (!conf_set) {
             aprintf_flush();
         }
         printf("Set configuration received\n");
         /* execute SCSI automaton */
-        scsi_initialize_automaton();
+        usbmsc_initialize_automaton();
         while (!reset_requested) {
-            scsi_exec_automaton();
-            aprintf_flush();
+            usbmsc_exec_automaton();
         }
         /* reset received! go back to default */
         conf_set = false;

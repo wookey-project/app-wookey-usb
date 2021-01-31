@@ -9,7 +9,7 @@
 
 extern uint8_t id_crypto;
 
-mbed_error_t scsi_storage_backend_capacity(uint32_t * numblocks,
+mbed_error_t usbmsc_storage_backend_capacity(uint32_t * numblocks,
                                            uint32_t * blocksize)
 {
     mbed_error_t error_code = MBED_ERROR_NONE;
@@ -111,7 +111,7 @@ mbed_error_t scsi_storage_backend_capacity(uint32_t * numblocks,
 }
 
 
-mbed_error_t scsi_storage_backend_read(uint32_t sector_address,
+mbed_error_t usbmsc_storage_backend_read(uint32_t sector_address,
                                        uint32_t num_sectors)
 {
     struct dataplane_command dataplane_command_rd = { 0 };
@@ -181,7 +181,7 @@ mbed_error_t scsi_storage_backend_read(uint32_t sector_address,
 }
 
 
-mbed_error_t scsi_storage_backend_write(uint32_t sector_address,
+mbed_error_t usbmsc_storage_backend_write(uint32_t sector_address,
                                         uint32_t num_sectors)
 {
     struct dataplane_command dataplane_command_wr = { 0 };
