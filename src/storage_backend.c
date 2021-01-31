@@ -3,7 +3,7 @@
 #include "libc/nostd.h"
 #include "libc/string.h"
 #include "wookey_ipc.h"
-#include "scsi.h"
+#include "libusbmsc.h"
 
 #define USB_APP_DEBUG 0
 
